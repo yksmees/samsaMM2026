@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="et">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jalka MM 2026 Ennustused</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:radial-gradient(circle at top left,#18335d,#08111f 45%);color:#ecf3ff;min-height:100vh}
+    a{color:#bfe0ff}
+    .wrap{max-width:1280px;margin:0 auto;padding:28px 18px 60px}
+    .top{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .brand h1{margin:0;font-size:28px;letter-spacing:.2px}
+    .brand p{margin:6px 0 0;color:#b7c6df}
+    .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.25);backdrop-filter: blur(10px)}
+    .grid{display:grid;grid-template-columns:380px 1fr;gap:18px;margin-top:18px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+    .pad{padding:16px}
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .tab{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#ecf3ff;padding:10px 12px;border-radius:12px;cursor:pointer}
+    .tab.active{background:rgba(128,203,255,.18);border-color:rgba(128,203,255,.35)}
+    input,select,button{font:inherit}
+    input,select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.25);color:#ecf3ff}
+    button{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#ecf3ff;cursor:pointer}
+    button.primary{background:rgba(128,203,255,.22);border-color:rgba(128,203,255,.35)}
+    button.danger{background:rgba(255,105,120,.18);border-color:rgba(255,105,120,.35)}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .muted{color:#b7c6df}
+    .ok{color:#62e38c}
+    .err{color:#ff7b8a}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.10);text-align:left;font-size:14px}
+    th{color:#bfe0ff;font-weight:600}
+    .pill{display:inline-flex;gap:6px;align-items:center;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.18);font-size:12px}
+    .right{margin-left:auto}
+    .hidden{display:none}
+    .scorebox{display:flex;gap:8px;align-items:center}
+    .scorebox input{width:70px;text-align:center}
+    .small{font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <h1>Jalka MM 2026 Ennustused</h1>
+        <p>Serveriga versioon: Netlify Functions + Supabase</p>
+      </div>
+      <div class="row">
+        <span id="who" class="pill hidden"></span>
+        <button id="btnLogout" class="danger hidden">Logi välja</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card pad">
+        <h3 style="margin-top:0">Sisselogimine</h3>
+        <div class="row">
+          <button id="btnHealth">Kontrolli API</button>
+          <span id="healthOut" class="muted small"></span>
+        </div>
+        <div style="height:10px"></div>
+        <div class="row">
+          <div style="flex:1;min-width:170px">
+            <div class="small muted">Kasutaja</div>
+            <input id="loginUser" placeholder="admin" />
+          </div>
+          <div style="flex:1;min-width:170px">
+            <div class="small muted">Parool</div>
+            <input id="loginPass" type="password" placeholder="••••••" />
+          </div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="row">
+          <button id="btnLogin" class="primary">Logi sisse</button>
+          <span id="loginOut" class="muted small"></span>
+        </div>
+
+        <hr style="border:0;border-top:1px solid rgba(255,255,255,.12);margin:16px 0">
+
+        <h3 style="margin:0 0 8px">Esimene admin</h3>
+        <div class="muted small">Kui adminit veel pole, loo siin. Kui ütleb “Admin on juba olemas”, on kõik korras.</div>
+        <div style="height:10px"></div>
+        <div class="row">
+          <div style="flex:1;min-width:120px"><input id="setupUser" value="admin" placeholder="username"></div>
+          <div style="flex:1;min-width:120px"><input id="setupName" value="Admin" placeholder="nimi"></div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="row">
+          <div style="flex:1"><input id="setupPass" type="password" placeholder="parool (min 6)"></div>
+          <button id="btnSetup">Loo admin</button>
+        </div>
+        <div style="height:8px"></div>
+        <div id="setupOut" class="muted small"></div>
+
+        <hr style="border:0;border-top:1px solid rgba(255,255,255,.12);margin:16px 0">
+
+        <h3 style="margin:0 0 8px">Parooli vahetus</h3>
+        <div class="row">
+          <div style="flex:1"><input id="oldPass" type="password" placeholder="vana parool"></div>
+          <div style="flex:1"><input id="newPass" type="password" placeholder="uus parool (min 6)"></div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="row">
+          <button id="btnChangePass">Muuda parool</button>
+          <span id="passOut" class="muted small"></span>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <div class="tabs">
+          <button class="tab active" data-tab="pred">Ennustused</button>
+          <button class="tab" data-tab="lb">Edetabel</button>
+          <button class="tab hidden" data-tab="admin">Admin</button>
+        </div>
+
+        <div id="tabPred" style="margin-top:14px">
+          <div class="row">
+            <button id="btnLoadMatches">Lae mängud</button>
+            <span id="matchesOut" class="muted small"></span>
+            <span class="right muted small">Salvestus käib nupu “Salvesta” kaudu</span>
+          </div>
+          <div style="height:10px"></div>
+          <table id="matchesTable" class="hidden">
+            <thead>
+              <tr>
+                <th>#</th><th>Etapp</th><th>Kodu</th><th>Võõrsil</th><th>Sinu ennustus</th><th>Lõpp</th><th>Punktid</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div id="noMatchesHint" class="muted small hidden" style="margin-top:10px">
+            Mänge ei ole. Käivita Supabase SQL Editoris fail <b>sql/matches_seed.sql</b>, siis lae uuesti.
+          </div>
+        </div>
+
+        <div id="tabLb" class="hidden" style="margin-top:14px">
+          <div class="row">
+            <button id="btnLeaderboard">Lae edetabel</button>
+            <span id="lbOut" class="muted small"></span>
+          </div>
+          <div style="height:10px"></div>
+          <table id="lbTable" class="hidden">
+            <thead><tr><th>Mängija</th><th>Punktid</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div id="tabAdmin" class="hidden" style="margin-top:14px">
+          <div class="row">
+            <span class="pill">Admin</span>
+            <span class="muted small">Lõppskooride sisestamine arvutab punktid uuesti.</span>
+          </div>
+          <div style="height:10px"></div>
+          <table id="adminTable" class="hidden">
+            <thead>
+              <tr><th>#</th><th>Etapp</th><th>Kodu</th><th>Võõrsil</th><th>Lõpp</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div id="adminOut" class="muted small" style="margin-top:8px"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+  const $ = (id)=>document.getElementById(id);
+  const api = (path)=>`/api/${path}`;
+  let token = localStorage.getItem("token") || "";
+  let me = null;
+
+  function setMsg(el, cls, msg){
+    el.className = cls;
+    el.textContent = msg;
+  }
+
+  async function call(path, opts={}){
+    const headers = Object.assign({"content-type":"application/json"}, opts.headers||{});
+    if (token) headers.authorization = "Bearer " + token;
+    const res = await fetch(api(path), Object.assign({}, opts, {headers}));
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+    return data;
+  }
+
+  function updateAuthUi(){
+    const who = $("who");
+    const btnLogout = $("btnLogout");
+    const adminBtn = document.querySelector('[data-tab="admin"]');
+    if (me){
+      who.classList.remove("hidden");
+      who.textContent = me.display_name + " (" + me.username + ")" + (me.is_admin ? " • admin" : "");
+      btnLogout.classList.remove("hidden");
+      if (me.is_admin) adminBtn.classList.remove("hidden");
+      else adminBtn.classList.add("hidden");
+    } else {
+      who.classList.add("hidden");
+      btnLogout.classList.add("hidden");
+      adminBtn.classList.add("hidden");
+    }
+  }
+
+  function switchTab(tab){
+    for (const b of document.querySelectorAll(".tab")){
+      b.classList.toggle("active", b.dataset.tab === tab);
+    }
+    $("tabPred").classList.toggle("hidden", tab !== "pred");
+    $("tabLb").classList.toggle("hidden", tab !== "lb");
+    $("tabAdmin").classList.toggle("hidden", tab !== "admin");
+  }
+
+  for (const b of document.querySelectorAll(".tab")){
+    b.addEventListener("click", ()=>switchTab(b.dataset.tab));
+  }
+
+  $("btnHealth").onclick = async ()=>{
+    try{
+      const r = await call("health", {method:"GET"});
+      setMsg($("healthOut"), "ok small", "OK " + r.time);
+    }catch(e){
+      setMsg($("healthOut"), "err small", "VIGA: " + e.message);
+    }
+  };
+
+  $("btnSetup").onclick = async ()=>{
+    setMsg($("setupOut"), "muted small", "…");
+    try{
+      const body = { username: $("setupUser").value.trim(), display_name: $("setupName").value.trim(), password: $("setupPass").value };
+      const r = await call("setup/admin", {method:"POST", body: JSON.stringify(body)});
+      setMsg($("setupOut"), "ok small", "Valmis: admin loodud (" + r.admin.username + ")");
+    }catch(e){
+      setMsg($("setupOut"), "err small", "VIGA: " + e.message);
+    }
+  };
+
+  $("btnLogin").onclick = async ()=>{
+    setMsg($("loginOut"), "muted small", "…");
+    try{
+      const body = { username: $("loginUser").value.trim(), password: $("loginPass").value };
+      const r = await call("login", {method:"POST", body: JSON.stringify(body)});
+      token = r.token;
+      localStorage.setItem("token", token);
+      me = r.user;
+      updateAuthUi();
+      setMsg($("loginOut"), "ok small", "Sisse logitud");
+    }catch(e){
+      setMsg($("loginOut"), "err small", "VIGA: " + e.message);
+    }
+  };
+
+  $("btnLogout").onclick = ()=>{
+    token = "";
+    me = null;
+    localStorage.removeItem("token");
+    updateAuthUi();
+    setMsg($("loginOut"), "muted small", "Välja logitud");
+  };
+
+  $("btnChangePass").onclick = async ()=>{
+    setMsg($("passOut"), "muted small", "…");
+    try{
+      const body = { old_password: $("oldPass").value, new_password: $("newPass").value };
+      await call("password", {method:"POST", body: JSON.stringify(body)});
+      setMsg($("passOut"), "ok small", "Parool muudetud");
+      $("oldPass").value=""; $("newPass").value="";
+    }catch(e){
+      setMsg($("passOut"), "err small", "VIGA: " + e.message);
+    }
+  };
+
+  async function loadMatches(){
+    $("matchesTable").classList.add("hidden");
+    $("noMatchesHint").classList.add("hidden");
+    setMsg($("matchesOut"), "muted small", "…");
+    try{
+      const r = await call("matches", {method:"GET"});
+      const preds = me ? await call("predictions", {method:"GET"}) : { predictions: [] };
+      const predMap = new Map((preds.predictions||[]).map(p=>[p.match_id, p]));
+      const tbody = $("matchesTable").querySelector("tbody");
+      tbody.innerHTML = "";
+      for (const m of r.matches){
+        const p = predMap.get(m.id) || null;
+        const tr = document.createElement("tr");
+        const final = (m.final_home==null || m.final_away==null) ? "" : `${m.final_home}:${m.final_away}`;
+        tr.innerHTML = `
+          <td>${m.match_no}</td>
+          <td>${m.stage}</td>
+          <td>${m.home}</td>
+          <td>${m.away}</td>
+          <td>
+            <div class="scorebox">
+              <input type="number" min="0" step="1" value="${p ? p.pred_home : ""}" data-ph>
+              <span>:</span>
+              <input type="number" min="0" step="1" value="${p ? p.pred_away : ""}" data-pa>
+            </div>
+          </td>
+          <td>${final}</td>
+          <td>${p ? (p.points ?? 0) : ""}</td>
+          <td><button class="primary" data-save>Salvesta</button></td>
+        `;
+        tr.querySelector("[data-save]").onclick = async ()=>{
+          if (!me) { alert("Logi sisse, et salvestada."); return; }
+          const ph = tr.querySelector("[data-ph]").value;
+          const pa = tr.querySelector("[data-pa]").value;
+          if (ph==="" || pa===""){ alert("Sisesta mõlemad väravad."); return; }
+          try{
+            const body = { match_id: m.id, pred_home: Number(ph), pred_away: Number(pa) };
+            const saved = await call("predictions", {method:"POST", body: JSON.stringify(body)});
+            tr.children[6].textContent = saved.prediction.points ?? 0;
+          }catch(e){ alert("VIGA: " + e.message); }
+        };
+        tbody.appendChild(tr);
+      }
+      if ((r.matches||[]).length === 0){
+        setMsg($("matchesOut"), "ok small", "OK mängud: 0");
+        $("noMatchesHint").classList.remove("hidden");
+        return;
+      }
+      setMsg($("matchesOut"), "ok small", "OK mängud: " + r.matches.length);
+      $("matchesTable").classList.remove("hidden");
+
+      if (me && me.is_admin){
+        renderAdmin(r.matches);
+      }
+    }catch(e){
+      setMsg($("matchesOut"), "err small", "VIGA: " + e.message);
+    }
+  }
+
+  function renderAdmin(matches){
+    const tbody = $("adminTable").querySelector("tbody");
+    tbody.innerHTML = "";
+    for (const m of matches){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${m.match_no}</td>
+        <td>${m.stage}</td>
+        <td>${m.home}</td>
+        <td>${m.away}</td>
+        <td>
+          <div class="scorebox">
+            <input type="number" min="0" step="1" value="${m.final_home ?? ""}" data-fh>
+            <span>:</span>
+            <input type="number" min="0" step="1" value="${m.final_away ?? ""}" data-fa>
+          </div>
+        </td>
+        <td><button class="primary" data-savefinal>Salvesta</button></td>
+      `;
+      tr.querySelector("[data-savefinal]").onclick = async ()=>{
+        const fh = tr.querySelector("[data-fh]").value;
+        const fa = tr.querySelector("[data-fa]").value;
+        if (fh==="" || fa===""){ alert("Sisesta mõlemad väravad."); return; }
+        try{
+          await call(`matches/${m.id}`, {method:"PUT", body: JSON.stringify({ final_home: Number(fh), final_away: Number(fa), is_finished: true })});
+          $("adminOut").textContent = "Salvestatud. Punktid arvutati uuesti.";
+        }catch(e){ alert("VIGA: " + e.message); }
+      };
+      tbody.appendChild(tr);
+    }
+    $("adminTable").classList.remove("hidden");
+  }
+
+  $("btnLoadMatches").onclick = loadMatches;
+
+  $("btnLeaderboard").onclick = async ()=>{
+    $("lbTable").classList.add("hidden");
+    setMsg($("lbOut"), "muted small", "…");
+    try{
+      const r = await call("leaderboard", {method:"GET"});
+      const tbody = $("lbTable").querySelector("tbody");
+      tbody.innerHTML = "";
+      for (const row of r.leaderboard){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row.display_name}</td><td>${row.points}</td>`;
+        tbody.appendChild(tr);
+      }
+      $("lbTable").classList.remove("hidden");
+      setMsg($("lbOut"), "ok small", "OK");
+    }catch(e){
+      setMsg($("lbOut"), "err small", "VIGA: " + e.message);
+    }
+  };
+
+  (async ()=>{
+    if (!token) return;
+    try{
+      const r = await call("me", {method:"GET"});
+      me = r.user;
+      updateAuthUi();
+    }catch{
+      token=""; localStorage.removeItem("token");
+    }
+  })();
+</script>
+</body>
+</html>
