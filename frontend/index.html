@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="et">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jalka MM 2026</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="wrap">
+    <section id="login" class="card login">
+      <h1>Jalka MM 2026</h1>
+      <p>Serveriga ennustustabel. Logi sisse ja lisa oma skoorid.</p>
+      <label>Kasutaja</label><select id="loginName"></select>
+      <label>Parool</label><input id="loginPassword" type="password" placeholder="1234 või admin">
+      <button id="loginBtn">Logi sisse</button>
+      <p id="loginError" class="error"></p>
+    </section>
+    <section id="app" class="hidden">
+      <div class="top"><div><h1>Jalka MM 2026 ennustustabel</h1><p id="hello"></p></div><button id="logoutBtn" class="secondary">Logi välja</button></div>
+      <nav class="tabs">
+        <button data-tab="predict" class="active">Ennusta</button>
+        <button data-tab="leader">Edetabel</button>
+        <button data-tab="account">Minu konto</button>
+        <button data-tab="admin" class="adminOnly">Admin</button>
+      </nav>
+      <section id="predict" class="card tabpane">
+        <div class="stats"><div><b id="myPoints">0</b><span>punkti</span></div><div><b id="myRank">-</b><span>koht</span></div><div><b id="myDone">0</b><span>ennustust</span></div></div>
+        <div class="tools"><input id="search" placeholder="Otsi mängu"><select id="roundFilter"></select><select id="groupFilter"></select><button id="savePredictions">Salvesta</button></div>
+        <div id="matches"></div>
+      </section>
+      <section id="leader" class="card tabpane hidden"><h2>Edetabel</h2><table><thead><tr><th>#</th><th>Nimi</th><th>Punktid</th><th>Ennustusi</th></tr></thead><tbody id="leaderRows"></tbody></table></section>
+      <section id="account" class="card tabpane hidden"><h2>Minu konto</h2><label>Praegune parool</label><input id="oldPassword" type="password"><label>Uus parool</label><input id="newPassword" type="password"><button id="changePassword">Muuda parool</button><p id="accountMsg"></p></section>
+      <section id="admin" class="card tabpane hidden"><h2>Admin</h2><div class="adminActions"><button id="syncScores">Tõmba skoorid API-st</button><button id="addPlayer">Lisa mängija</button><button id="addMatch">Lisa mäng</button></div><h3>Mängijad</h3><div id="players"></div><h3>Mängud ja õiged skoorid</h3><div id="adminMatches"></div></section>
+    </section>
+  </main>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

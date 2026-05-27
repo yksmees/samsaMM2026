@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: jalka-mm-2026-api
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+      - key: FOOTBALL_API_KEY
+        sync: false
+      - key: FOOTBALL_API_PROVIDER
+        value: football-data
