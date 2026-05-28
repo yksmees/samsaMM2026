@@ -32,3 +32,15 @@ FIFA ametlik graafik annab ajad Eastern Time järgi; admin vaates saad ajad impo
 
 ## Ajakava automaatne sünkroniseerimine
 Admin vaates nupp “Sünkroniseeri ajakava” tõmbab ametliku ajakava NBC Sports artiklist ja paneb kickoff ajad mängudele.
+
+
+## Uus punktisüsteem
+- 4p = täpne skoor
+- 3p = õige tulemus + õiged kodumeeskonna väravad
+- 2p = õige tulemus
+- 1p = õiged võõrsilväravad
+- 0p = vale ennustus
+
+## Kasutajate registreerimine
+Login kaardis on nüüd “Loo uus konto”. Uus kasutaja saab ise konto teha ja logitakse kohe sisse.
+Admin saab endiselt kasutajaid admin vaates hallata.

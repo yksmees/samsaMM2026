@@ -53,8 +53,23 @@ function userFrom(event) {
 function outcome(h,a){ return h>a?1:h<a?-1:0; }
 function calcPoints(ph,pa,fh,fa){
   if (fh===null || fa===null || fh===undefined || fa===undefined) return 0;
+
+  // 4p = täpne skoor
   if (ph===fh && pa===fa) return 4;
-  return outcome(ph,pa)===outcome(fh,fa) ? 2 : 0;
+
+  const predictedOutcome = outcome(ph,pa);
+  const finalOutcome = outcome(fh,fa);
+
+  // 3p = õige tulemus + õiged kodumeeskonna väravad
+  if (predictedOutcome === finalOutcome && ph === fh) return 3;
+
+  // 2p = õige tulemus (õige võitja või viik)
+  if (predictedOutcome === finalOutcome) return 2;
+
+  // 1p = õiged võõrsilväravad
+  if (pa === fa) return 1;
+
+  return 0;
 }
 
 export async function handler(event) {
@@ -110,6 +125,43 @@ export async function handler(event) {
       );
       return json(200, { ok: true, token, user: { id: u.id, username: u.username, display_name: u.display_name, is_admin: u.is_admin }});
     }
+
+
+// Public registration: POST /api/register { username, display_name, password }
+if (event.httpMethod === "POST" && route === "register") {
+  const body = JSON.parse(event.body || "{}");
+  const username = (body.username || "").toString().trim();
+  const display_name = (body.display_name || "").toString().trim();
+  const password = (body.password || "").toString();
+
+  if (!username || !display_name || password.length < 6) {
+    return json(400, { error: "Sisesta kasutajanimi, nimi ja parool vähemalt 6 tähemärki." });
+  }
+
+  if (!/^[a-zA-Z0-9_.-]{3,32}$/.test(username)) {
+    return json(400, { error: "Kasutajanimi peab olema 3-32 märki ja võib sisaldada tähti, numbreid, punkti, sidekriipsu või alakriipsu." });
+  }
+
+  const exists = await sb.from("players").select("id").eq("username", username).limit(1);
+  if (exists.error) return json(500, { error: exists.error.message });
+  if ((exists.data || []).length > 0) return json(409, { error: "See kasutajanimi on juba võetud." });
+
+  const password_hash = await bcrypt.hash(password, 10);
+  const ins = await sb.from("players")
+    .insert({ username, display_name, password_hash, is_admin: false })
+    .select("id,username,display_name,is_admin")
+    .single();
+
+  if (ins.error) return json(500, { error: ins.error.message });
+
+  const token = jwt.sign(
+    { sub: ins.data.id, username: ins.data.username, display_name: ins.data.display_name, is_admin: ins.data.is_admin },
+    getEnv("JWT_SECRET"),
+    { expiresIn: "30d" }
+  );
+
+  return json(200, { ok: true, token, user: ins.data });
+}
 
     if (event.httpMethod === "GET" && route === "me") {
       const u = userFrom(event);
