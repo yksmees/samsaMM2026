@@ -183,7 +183,7 @@
     <button id="btnImport" class="primary">Impordi ajad</button>
   </div>
 </div>
-      </div
+      </div>
     </div>
 
   </div>
@@ -373,26 +373,18 @@ async function loadPlayers(){
 
 // Events
 $("btnHealth").onclick = async ()=>{
-  try{ const r = await call("health",{method:"GET"}); setMsg($("quickMsg"), true, r.time); }
-  catch(e){ setMsg($("quickMsg"), false, e.message); }
+  try{ const r = await call("health",{method:"GET"}); setMsg($("adminMsg"), true, r.time); }
+  catch(e){ setMsg($("adminMsg"), false, e.message); }
 };
 
 $("btnSeed").onclick = async ()=>{
-  if (!(me && me.is_admin)) return setMsg($("quickMsg"), false, "Ainult admin.");
+  if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
   try{
     const r = await call("admin/seed/matches",{method:"POST"});
-    setMsg($("quickMsg"), true, `Mängud lisatud või uuendatud: ${r.inserted_or_updated}`);
+    setMsg($("adminMsg"), true, `Mängud lisatud või uuendatud: ${r.inserted_or_updated}`);
     await loadMatchesAndPreds();
   }catch(e){
-    setMsg($("quickMsg"), false, e.message);
-  }
-};
-
-const r = await call("setup/admin",{method:"POST", body: JSON.stringify(body)});
-    setMsg($("setupMsg"), true, `Admin loodud: ${r.admin.username}`);
-    await loadAll();
-  }catch(e){
-    setMsg($("setupMsg"), false, e.message);
+    setMsg($("adminMsg"), false, e.message);
   }
 };
 
