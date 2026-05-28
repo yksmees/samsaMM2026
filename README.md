@@ -42,5 +42,10 @@ Admin vaates nupp “Sünkroniseeri ajakava” tõmbab ametliku ajakava NBC Spor
 - 0p = vale ennustus
 
 ## Kasutajate registreerimine
-Login kaardis on “Loo uus konto”. Uus kasutaja sisestab ainult kasutajanime ja parooli kaks korda. Tabelis kuvatav nimi on alguses sama mis kasutajanimi.
-Admin saab endiselt kasutajaid hallata ja unustatud parooli korral kasutajale uue parooli määrata.
+Login kaardis on nüüd “Loo uus konto”. Uus kasutaja saab ise konto teha ja logitakse kohe sisse.
+Admin saab endiselt kasutajaid admin vaates hallata.
+
+
+## Logo ja parooli muutmine
+- Veebilehel kasutatakse `frontend/assets/samsung-logo.png` faili.
+- Parooli muutmine ei ole enam login plokis. See on pärast sisselogimist vaates “Minu konto”.

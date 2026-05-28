@@ -13,8 +13,8 @@
     .wrap{max-width:1100px;margin:0 auto;padding:12px 18px 28px}
 
     .brand{display:flex;gap:14px;align-items:center}
-    .logo{width:190px;max-width:44vw;background:#fff;border-radius:999px;padding:6px 12px;display:flex;align-items:center;justify-content:center}
-    .logo img{width:100%;height:auto;display:block}
+    .logo{width:280px;max-width:55vw;display:flex;align-items:center;justify-content:flex-start}
+    .logo img{width:100%;height:auto;display:block;border-radius:0;background:transparent}
     .grid{display:grid;gap:14px}
     @media(min-width:900px){.grid.cols3{grid-template-columns:1.2fr 1fr 1fr}}
     @media(min-width:900px){.grid.cols2{grid-template-columns:1.3fr 1fr}}
@@ -66,27 +66,21 @@
           <button class="primary" id="btnLogin">Logi sisse</button>
           <button id="btnLogout">Logi välja</button>
         </div>
-
 <details style="margin-top:10px">
   <summary style="cursor:pointer;color:var(--muted)">Loo uus konto</summary>
   <div class="row" style="margin-top:10px">
     <input id="ru" placeholder="kasutajanimi" />
+    <input id="rn" placeholder="nimi tabelis" />
     <input id="rp" placeholder="parool (min 6)" type="password" />
-    <input id="rp2" placeholder="parool uuesti" type="password" />
     <button id="btnRegister" class="primary">Loo konto</button>
   </div>
 </details>
-        <div class="row" style="margin-top:10px">
-          <input id="oldp" placeholder="vana parool" type="password" />
-          <input id="newp" placeholder="uus parool (min 6)" type="password" />
-          <button id="btnPass">Muuda parool</button>
-        </div>
         <div id="loginMsg" class="msg"></div>
       </div>
       <div class="card">
         <strong>Kiire algus</strong>
         <div class="msg" style="margin-top:8px">
-          1) Logi sisse või loo uus konto kasutajanime ja parooliga<br>
+          1) Logi sisse või loo uus konto<br>
           2) Ennusta mängude skoore<br>
           Punktid: täpne skoor 4p, õige tulemus + koduväravad 3p, õige tulemus 2p, õiged võõrsilväravad 1p
         </div>
@@ -102,6 +96,7 @@
           <div class="tabs">
             <button class="tab active" data-tab="pred">Ennustused</button>
             <button class="tab" data-tab="lb">Edetabel</button>
+            <button class="tab" data-tab="account">Minu konto</button>
             <button class="tab" data-tab="admin">Admin</button>
           </div>
         </div>
@@ -135,6 +130,20 @@
         </table>
       </div>
 
+
+<div id="account" class="hide" style="margin-top:8px">
+  <div class="sub">Siin saad muuta enda parooli pärast sisselogimist.</div>
+  <div class="card" style="margin-top:10px">
+    <strong>Muuda parooli</strong>
+    <div class="row" style="margin-top:10px">
+      <input id="oldp" placeholder="praegune parool" type="password" />
+      <input id="newp" placeholder="uus parool (min 6)" type="password" />
+      <button id="btnPass" class="primary">Muuda parool</button>
+    </div>
+    <div id="accountMsg" class="msg"></div>
+  </div>
+</div>
+
       <div id="admin" class="hide" style="margin-top:8px">
         <div class="sub">Näed ainult adminina: mängijate lisamine ja mängude haldus.</div>
         <div id="adminMsg" class="msg"></div>
@@ -151,7 +160,7 @@
             <div class="row" style="margin-top:10px">
               <input id="pu2" placeholder="username" />
               <input id="pn2" placeholder="nimi" />
-              <input id="pp2" placeholder="algne parool (min 6)" type="password" />
+              <input id="pp2" placeholder="parool (min 6)" type="password" />
               <select id="pa2">
                 <option value="false">tavaline</option>
                 <option value="true">admin</option>
@@ -247,6 +256,7 @@ function toggleAdminTab(){
   document.querySelector('[data-tab="admin"]').style.display = isA ? "" : "none";
   if (!isA){
     $("admin").classList.add("hide");
+    $("account").classList.add("hide");
     document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
     document.querySelector('[data-tab="pred"]').classList.add("active");
     $("pred").classList.remove("hide");
@@ -339,7 +349,7 @@ async function loadPlayers(){
         <td>${pl.username}</td>
         <td>${pl.is_admin ? "jah" : "ei"}</td>
         <td class="right">
-          <button data-reset="${pl.id}">Määra uus parool</button>
+          <button data-reset="${pl.id}">Uus parool</button>
           <button data-del="${pl.id}">Kustuta</button>
         </td>
       `;
@@ -402,14 +412,18 @@ $("btnLogin").onclick = async ()=>{
     setMsg($("loginMsg"), true, `Sisse logitud: ${r.user.display_name}`);
     await loadAll();
   }catch(e){
-    setMsg($("loginMsg"), false, e.message);
+    setMsg($("accountMsg"), false, e.message);
   }
 };
 
 
 $("btnRegister").onclick = async ()=>{
   try{
-    const body = { username: $("ru").value.trim(), password: $("rp").value, password_confirm: $("rp2").value };
+    const body = {
+      username: $("ru").value.trim(),
+      display_name: $("rn").value.trim(),
+      password: $("rp").value
+    };
     const r = await call("register",{method:"POST", body: JSON.stringify(body)});
     token = r.token;
     localStorage.setItem("token", token);
@@ -417,8 +431,8 @@ $("btnRegister").onclick = async ()=>{
     $("u").value = r.user.username;
     $("p").value = "";
     $("ru").value = "";
+    $("rn").value = "";
     $("rp").value = "";
-    $("rp2").value = "";
     await loadAll();
   }catch(e){
     setMsg($("loginMsg"), false, e.message);
@@ -433,13 +447,13 @@ $("btnLogout").onclick = async ()=>{
 };
 
 $("btnPass").onclick = async ()=>{
-  if (!token) return setMsg($("loginMsg"), false, "Logi sisse.");
+  if (!token) return setMsg($("accountMsg"), false, "Logi sisse.");
   try{
     await call("password",{method:"POST", body: JSON.stringify({old_password:$("oldp").value, new_password:$("newp").value})});
-    setMsg($("loginMsg"), true, "Parool muudetud.");
+    setMsg($("accountMsg"), true, "Parool muudetud.");
     $("oldp").value=""; $("newp").value="";
   }catch(e){
-    setMsg($("loginMsg"), false, e.message);
+    setMsg($("accountMsg"), false, e.message);
   }
 };
 
@@ -518,7 +532,7 @@ document.querySelectorAll(".tab").forEach(t=>{
     document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
     t.classList.add("active");
     const name = t.getAttribute("data-tab");
-    ["pred","lb","admin"].forEach(id=>$(id).classList.add("hide"));
+    ["pred","lb","account","admin"].forEach(id=>$(id).classList.add("hide"));
     $(name).classList.remove("hide");
   });
 });
