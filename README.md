@@ -49,3 +49,10 @@ Admin saab endiselt kasutajaid admin vaates hallata.
 ## Logo ja parooli muutmine
 - Veebilehel kasutatakse `frontend/assets/samsung-logo.png` faili.
 - Parooli muutmine ei ole enam login plokis. See on pärast sisselogimist vaates “Minu konto”.
+
+
+## Uus ametlik mängutabel
+Mängud tulevad failist `FIFA Men's World Cup 2026 Sortable Schedule.xlsx`. Ajad olid tabelis US EDT/UTC-4 kujul ja salvestatakse andmebaasi UTC-na. Veebis kuvatakse need Eesti aja järgi.
+
+## Admin testid
+Admin vaates saab käsitsi sisestada mängu tulemuse mängu numbri järgi ja see arvutab punktid ümber. Samas saab käsitsi sisestada mängu aja Eesti aja järgi, et testida 1 tunni lukku.

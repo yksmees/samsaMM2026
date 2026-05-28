@@ -66,12 +66,13 @@
           <button class="primary" id="btnLogin">Logi sisse</button>
           <button id="btnLogout">Logi välja</button>
         </div>
+
 <details style="margin-top:10px">
   <summary style="cursor:pointer;color:var(--muted)">Loo uus konto</summary>
   <div class="row" style="margin-top:10px">
     <input id="ru" placeholder="kasutajanimi" />
-    <input id="rn" placeholder="nimi tabelis" />
     <input id="rp" placeholder="parool (min 6)" type="password" />
+    <input id="rp2" placeholder="parool uuesti" type="password" />
     <button id="btnRegister" class="primary">Loo konto</button>
   </div>
 </details>
@@ -149,7 +150,7 @@
         <div id="adminMsg" class="msg"></div>
         <div class="row" style="margin-top:10px">
           <button id="btnHealth">API tervis</button>
-          <button id="btnSeed" class="primary">Lisa 104 mängu</button>
+          <button id="btnSeed" class="primary">Lae ametlik mängutabel</button>
           <button id="btnSync">Sünkroniseeri ajakava</button>
         </div>
 
@@ -173,18 +174,25 @@
             </table>
           </div>
 
+          
           <div class="card">
-            <strong>Mängud: lõppskoor</strong>
-            <div class="sub" style="margin-top:6px">Muuda ainult siis, kui tulemus on kindel. See arvutab punktid ümber.</div>
+            <strong>Käsitsi kontroll: tulemus ja mänguaeg</strong>
+            <div class="sub" style="margin-top:6px">Sisesta mängu number (#). Tulemus arvutab punktid ümber. Mänguaeg salvesta Eesti aja järgi, et kontrollida 1 tunni lukku.</div>
             <div class="row" style="margin-top:10px">
-              <input id="mid" class="small" placeholder="match id" />
+              <input id="mid" class="small" placeholder="mängu #" />
               <input id="fh" class="small" placeholder="kodu" />
               <input id="fa" class="small" placeholder="võõrsil" />
-              <button id="btnSetFinal" class="primary">Salvesta</button>
+              <button id="btnSetFinal" class="primary">Salvesta tulemus</button>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <input id="timeNo" class="small" placeholder="mängu #" />
+              <input id="timeDate" placeholder="kuupäev, nt 2026-06-11" />
+              <input id="timeClock" placeholder="Eesti aeg, nt 22:00" />
+              <button id="btnSetKickoff" class="primary">Salvesta mänguaeg</button>
             </div>
           </div>
         </div>
-        
+
 <div class="card">
   <strong>Import ajad (FIFA ajakava)</strong>
   <div class="sub" style="margin-top:6px">
@@ -419,11 +427,7 @@ $("btnLogin").onclick = async ()=>{
 
 $("btnRegister").onclick = async ()=>{
   try{
-    const body = {
-      username: $("ru").value.trim(),
-      display_name: $("rn").value.trim(),
-      password: $("rp").value
-    };
+    const body = { username: $("ru").value.trim(), password: $("rp").value, password_confirm: $("rp2").value };
     const r = await call("register",{method:"POST", body: JSON.stringify(body)});
     token = r.token;
     localStorage.setItem("token", token);
@@ -431,8 +435,8 @@ $("btnRegister").onclick = async ()=>{
     $("u").value = r.user.username;
     $("p").value = "";
     $("ru").value = "";
-    $("rn").value = "";
     $("rp").value = "";
+    $("rp2").value = "";
     await loadAll();
   }catch(e){
     setMsg($("loginMsg"), false, e.message);
@@ -509,14 +513,36 @@ $("btnImport").onclick = async ()=>{
   }
 };
 
+
+$("btnSetKickoff").onclick = async ()=>{
+  if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
+  try{
+    const matchNo = Number($("timeNo").value);
+    const d = $("timeDate").value.trim();
+    const t = $("timeClock").value.trim();
+    if (!matchNo || !/^\d{4}-\d{2}-\d{2}$/.test(d) || !/^\d{1,2}:\d{2}$/.test(t)) {
+      return setMsg($("adminMsg"), false, "Sisesta mängu #, kuupäev YYYY-MM-DD ja Eesti aeg HH:MM.");
+    }
+    const [Y,M,D] = d.split("-").map(Number);
+    const [hh,mm] = t.split(":").map(Number);
+    // Eesti aeg juunis/juulis 2026 on EEST ehk UTC+3
+    const utc = new Date(Date.UTC(Y, M-1, D, hh-3, mm, 0));
+    await call(`admin/matches/by-no/${matchNo}`,{method:"PUT", body: JSON.stringify({kickoff_utc: utc.toISOString()})});
+    setMsg($("adminMsg"), true, "Mänguaeg salvestatud Eesti aja järgi.");
+    await loadMatchesAndPreds();
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+};
+
 $("btnSetFinal").onclick = async ()=>{
   if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
   try{
-    const id = Number($("mid").value);
+    const matchNo = Number($("mid").value);
     const fh = Number($("fh").value);
     const fa = Number($("fa").value);
-    if (!id || !Number.isFinite(fh) || !Number.isFinite(fa)) return setMsg($("adminMsg"), false, "Sisesta match id ja numbrid.");
-    await call(`admin/matches/${id}`,{method:"PUT", body: JSON.stringify({final_home: fh, final_away: fa, is_finished: true})});
+    if (!matchNo || !Number.isFinite(fh) || !Number.isFinite(fa)) return setMsg($("adminMsg"), false, "Sisesta mängu # ja numbrid.");
+    await call(`admin/matches/by-no/${matchNo}`,{method:"PUT", body: JSON.stringify({final_home: fh, final_away: fa, is_finished: true})});
     setMsg($("adminMsg"), true, "Tulemus salvestatud.");
     await loadMatchesAndPreds();
     await loadLeaderboard();
