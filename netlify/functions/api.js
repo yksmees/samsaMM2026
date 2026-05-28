@@ -127,15 +127,20 @@ export async function handler(event) {
     }
 
 
-// Public registration: POST /api/register { username, display_name, password }
+
+// Public registration: POST /api/register { username, password, password_confirm }
 if (event.httpMethod === "POST" && route === "register") {
   const body = JSON.parse(event.body || "{}");
   const username = (body.username || "").toString().trim();
-  const display_name = (body.display_name || "").toString().trim();
   const password = (body.password || "").toString();
+  const password_confirm = (body.password_confirm || "").toString();
 
-  if (!username || !display_name || password.length < 6) {
-    return json(400, { error: "Sisesta kasutajanimi, nimi ja parool vähemalt 6 tähemärki." });
+  if (!username || password.length < 6) {
+    return json(400, { error: "Sisesta kasutajanimi ja parool vähemalt 6 tähemärki." });
+  }
+
+  if (password !== password_confirm) {
+    return json(400, { error: "Paroolid ei kattu." });
   }
 
   if (!/^[a-zA-Z0-9_.-]{3,32}$/.test(username)) {
@@ -148,7 +153,7 @@ if (event.httpMethod === "POST" && route === "register") {
 
   const password_hash = await bcrypt.hash(password, 10);
   const ins = await sb.from("players")
-    .insert({ username, display_name, password_hash, is_admin: false })
+    .insert({ username, display_name: username, password_hash, is_admin: false })
     .select("id,username,display_name,is_admin")
     .single();
 
@@ -163,7 +168,8 @@ if (event.httpMethod === "POST" && route === "register") {
   return json(200, { ok: true, token, user: ins.data });
 }
 
-    if (event.httpMethod === "GET" && route === "me") {
+if (event.httpMethod === "GET" && route === "me") {
+
       const u = userFrom(event);
       if (!u) return json(401, { error: "Pole sisse logitud." });
       return json(200, { ok: true, user: u });
