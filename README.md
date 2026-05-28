@@ -1,0 +1,34 @@
+# Jalka MM 2026 Ennustused (täis UI)
+
+See versioon taastab esimese HTML demo stiili (ennustamise lahtrid, kasutajate lisamine) aga töötab serveriga:
+- Netlify Functions
+- Supabase PostgreSQL
+
+## Netlify env variables
+Lisa Netlify Project configuration → Environment variables:
+- SUPABASE_URL
+- SUPABASE_SERVICE_ROLE_KEY
+- JWT_SECRET
+
+## Supabase
+SQL Editoris käivita:
+- sql/schema.sql
+- sql/leaderboard_rpc.sql
+
+## Admin konto
+Kui admin on juba loodud, saad kohe sisse logida.
+
+## 104 mängu
+Logi sisse adminina ja vajuta “Lisa 104 mängu”.
+See lisab 72 alagrupi mängu + playoff kohatäitjad (104 kokku).
+
+Kui tahad päris tiimide nimed ja kuupäevad, anna mulle formaat (või FIFA schedule fail) ja panen seed’i õigeks.
+
+
+## Ajad (Eesti aeg)
+UI näitab mängu algust Eesti ajas (Europe/Tallinn). Lukustus kasutab kickoff_utc välja.
+FIFA ametlik graafik annab ajad Eastern Time järgi; admin vaates saad ajad importida.
+
+
+## Ajakava automaatne sünkroniseerimine
+Admin vaates nupp “Sünkroniseeri ajakava” tõmbab ametliku ajakava NBC Sports artiklist ja paneb kickoff ajad mängudele.

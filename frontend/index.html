@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="et">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jalka MM 2026 Ennustused</title>
+  <style>
+    :root{--bg:#0b1020;--card:#111a33;--muted:#a9b4d0;--text:#f4f6ff;--line:rgba(255,255,255,.12);--ok:#42d392;--bad:#ff6b6b;--btn:#1f2a52}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,var(--bg),#0a0f1f);color:var(--text)}
+    header{padding:28px 18px 10px;max-width:1100px;margin:0 auto}
+    h1{margin:0 0 6px;font-size:28px}
+    .sub{color:var(--muted);font-size:14px}
+    .wrap{max-width:1100px;margin:0 auto;padding:12px 18px 28px}
+
+    .brand{display:flex;gap:14px;align-items:center}
+    .logo{width:160px;max-width:40vw}
+    .logo svg{width:100%;height:auto;display:block}
+    .grid{display:grid;gap:14px}
+    @media(min-width:900px){.grid.cols3{grid-template-columns:1.2fr 1fr 1fr}}
+    @media(min-width:900px){.grid.cols2{grid-template-columns:1.3fr 1fr}}
+    .card{background:rgba(17,26,51,.85);border:1px solid var(--line);border-radius:16px;padding:14px 14px 12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    input,select{background:#0d1430;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 12px;font:inherit;outline:none;min-width:180px}
+    input.small{min-width:auto;width:80px}
+    button{background:var(--btn);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 12px;font:inherit;cursor:pointer}
+    button:hover{filter:brightness(1.06)}
+    button.primary{background:linear-gradient(180deg,#2a3a7a,#1f2a52)}
+    .msg{margin-top:10px;color:var(--muted);font-size:14px}
+    .ok{color:var(--ok)}
+    .bad{color:var(--bad)}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 0}
+    .tab{padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+    .tab.active{background:#0d1430;color:var(--text)}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px 6px;text-align:left;font-size:13px;vertical-align:middle}
+    th{color:var(--muted);font-weight:600}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px}
+    .right{text-align:right}
+    .hide{display:none}
+  </style>
+</head>
+<body>
+  
+  <header>
+    <div class="brand">
+      <div class="logo" aria-label="Samsung logo">
+        <svg viewBox="0 0 320 90" role="img" aria-label="SAMSUNG">
+          <ellipse cx="160" cy="45" rx="150" ry="36" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="6"/>
+          <text x="160" y="57" text-anchor="middle" font-size="46" font-weight="700" fill="rgba(255,255,255,.92)" font-family="system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">SAMSUNG</text>
+        </svg>
+      </div>
+      <div>
+        <h1>Samsung JalkaMM 2026 ennustus</h1>
+        <div class="sub" id="topSub"></div>
+      </div>
+    </div>
+  </header>
+
+
+  <div class="wrap">
+    
+    <div class="grid cols2">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <strong>Login</strong>
+          <span id="who" class="pill">väljas</span>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <input id="u" placeholder="kasutaja" />
+          <input id="p" placeholder="parool" type="password" />
+          <button class="primary" id="btnLogin">Logi sisse</button>
+          <button id="btnLogout">Logi välja</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <input id="oldp" placeholder="vana parool" type="password" />
+          <input id="newp" placeholder="uus parool (min 6)" type="password" />
+          <button id="btnPass">Muuda parool</button>
+        </div>
+        <div id="loginMsg" class="msg"></div>
+      </div>
+      <div class="card">
+        <strong>Kiire algus</strong>
+        <div class="msg" style="margin-top:8px">
+          1) Logi sisse<br>
+          2) Kui oled admin, saad lisada mänge ja mängijaid admin vaates
+        </div>
+        <div id="quickMsg" class="msg"></div>
+      </div>
+    </div>
+
+    <div id="viewsCard" class="card hide" style="margin-top:14px">
+
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <strong>Vaated</strong>
+          <div class="tabs">
+            <button class="tab active" data-tab="pred">Ennustused</button>
+            <button class="tab" data-tab="lb">Edetabel</button>
+            <button class="tab" data-tab="admin">Admin</button>
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnReload" class="primary">Uuenda</button>
+        </div>
+      </div>
+
+      <div id="pred" style="margin-top:8px">
+        <div class="sub">Sisesta oma ennustus. Ennustus lukustub 1 tund enne mängu algust.</div>
+        <div id="predMsg" class="msg"></div>
+        <table id="mTable">
+          <thead>
+            <tr>
+              <th>#</th><th>Etapp</th><th>Kodu</th><th>Võõrsil</th><th>Algab (Eesti aeg)</th>
+              <th class="right">Sinu ennustus</th>
+              <th class="right">Lõpp</th>
+              <th class="right">Punktid</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="lb" class="hide" style="margin-top:8px">
+        <div class="sub">Punktisumma kõigi mängude peale.</div>
+        <div id="lbMsg" class="msg"></div>
+        <table id="lbTable">
+          <thead><tr><th>Mängija</th><th class="right">Punktid</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="admin" class="hide" style="margin-top:8px">
+        <div class="sub">Näed ainult adminina: mängijate lisamine ja mängude haldus.</div>
+        <div id="adminMsg" class="msg"></div>
+        <div class="row" style="margin-top:10px">
+          <button id="btnHealth">API tervis</button>
+          <button id="btnSeed" class="primary">Lisa 104 mängu</button>
+          <button id="btnSync">Sünkroniseeri ajakava</button>
+        </div>
+
+
+        <div class="grid cols2" style="margin-top:10px">
+          <div class="card">
+            <strong>Mängijad</strong>
+            <div class="row" style="margin-top:10px">
+              <input id="pu2" placeholder="username" />
+              <input id="pn2" placeholder="nimi" />
+              <input id="pp2" placeholder="parool (min 6)" type="password" />
+              <select id="pa2">
+                <option value="false">tavaline</option>
+                <option value="true">admin</option>
+              </select>
+              <button id="btnAddPlayer" class="primary">Lisa</button>
+            </div>
+            <table id="pTable">
+              <thead><tr><th>Nimi</th><th>Username</th><th>Admin</th><th class="right">Tegevus</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <strong>Mängud: lõppskoor</strong>
+            <div class="sub" style="margin-top:6px">Muuda ainult siis, kui tulemus on kindel. See arvutab punktid ümber.</div>
+            <div class="row" style="margin-top:10px">
+              <input id="mid" class="small" placeholder="match id" />
+              <input id="fh" class="small" placeholder="kodu" />
+              <input id="fa" class="small" placeholder="võõrsil" />
+              <button id="btnSetFinal" class="primary">Salvesta</button>
+            </div>
+          </div>
+        </div>
+        
+<div class="card">
+  <strong>Import ajad (FIFA ajakava)</strong>
+  <div class="sub" style="margin-top:6px">
+    FIFA ametlik graafik annab ajad Eastern Time järgi. Siia kleepi read kujul: match_no,YYYY-MM-DD,HH:MM (ET).
+    Näide: 1,2026-06-11,15:00
+  </div>
+  <div style="margin-top:10px">
+    <textarea id="imp" style="width:100%;min-height:140px;background:#0d1430;border:1px solid rgba(255,255,255,.12);color:#f4f6ff;border-radius:12px;padding:10px 12px;font:inherit" placeholder="1,2026-06-11,15:00"></textarea>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button id="btnImport" class="primary">Impordi ajad</button>
+  </div>
+</div>
+      </div
+    </div>
+
+  </div>
+
+<script>
+const api = (p)=>`/api/${p}`;
+let token = localStorage.getItem("token") || "";
+let me = null;
+
+const $ = (id)=>document.getElementById(id);
+
+async function call(path, opts={}) {
+  const headers = Object.assign({"content-type":"application/json"}, opts.headers||{});
+  if (token) headers.authorization = "Bearer " + token;
+  const res = await fetch(api(path), Object.assign({}, opts, { headers }));
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+  return data;
+}
+
+function setMsg(el, ok, text){
+  el.innerHTML = ok ? `<span class="ok">OK</span> ${text||""}` : `<span class="bad">VIGA:</span> ${text||""}`;
+}
+
+function setWho(){
+  $("who").textContent = me ? `${me.display_name} (${me.username})${me.is_admin ? " admin" : ""}` : "väljas";
+}
+
+async function refreshMe(){
+  if (!token){ me=null; setWho(); return; }
+  try{
+    const r = await call("me",{method:"GET"});
+    me = r.user;
+  }catch{
+    me=null;
+    token="";
+    localStorage.removeItem("token");
+  }
+  setWho();
+  const ts = document.getElementById('topSub');
+  if (ts) ts.textContent = me ? '' : '';
+}
+
+async function loadAll(){
+  await refreshMe();
+  document.getElementById('viewsCard').classList.toggle('hide', !me);
+  await loadMatchesAndPreds();
+  await loadLeaderboard();
+  await loadPlayers();
+  toggleAdminTab();
+}
+
+function toggleAdminTab(){
+  const isA = !!(me && me.is_admin);
+  document.querySelector('[data-tab="admin"]').style.display = isA ? "" : "none";
+  if (!isA){
+    $("admin").classList.add("hide");
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelector('[data-tab="pred"]').classList.add("active");
+    $("pred").classList.remove("hide");
+  }
+}
+
+async function loadMatchesAndPreds(){
+  const tbody = $("mTable").querySelector("tbody");
+  tbody.innerHTML = "";
+  $("predMsg").textContent = "";
+  try{
+    const [m, p] = await Promise.all([
+      call("matches",{method:"GET"}),
+      token ? call("predictions",{method:"GET"}) : Promise.resolve({predictions:[]})
+    ]);
+    const map = new Map((p.predictions||[]).map(x=>[x.match_id, x]));
+    for (const row of m.matches){
+      const pr = map.get(row.id);
+      const tr = document.createElement("tr");
+      const final = (row.final_home===null || row.final_away===null) ? "" : `${row.final_home}:${row.final_away}`;
+      const ko = row.kickoff_utc ? new Date(row.kickoff_utc) : null;
+const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
+const locked = !!(ko && (Date.now() >= (ko.getTime() - 60*60*1000)) && !(me && me.is_admin));
+const lockHint = locked ? "Lukus" : "";
+tr.innerHTML = `
+  <td>${row.match_no}</td>
+  <td><span class="pill">${row.stage}</span></td>
+  <td>${row.home}</td>
+  <td>${row.away}</td>
+  <td>${koTxt} ${lockHint ? `<span class="pill">${lockHint}</span>` : ""}</td>
+  <td class="right">
+    <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
+    <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" ${locked ? "disabled" : ""}>
+    <button data-save="${row.id}" ${locked ? "disabled" : ""}>Salvesta</button>
+  </td>
+  <td class="right">${final}</td>
+  <td class="right">${pr?pr.points:0}</td>
+`;
+      tbody.appendChild(tr);
+    }
+    tbody.querySelectorAll("button[data-save]").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        if (!token) return setMsg($("predMsg"), false, "Logi sisse enne ennustamist.");
+        const mid = Number(btn.getAttribute("data-save"));
+        const h = tbody.querySelector(`input[data-mid="${mid}"][data-side="h"]`).value;
+        const a = tbody.querySelector(`input[data-mid="${mid}"][data-side="a"]`).value;
+        const ph = Number(h), pa = Number(a);
+        if (!Number.isFinite(ph) || !Number.isFinite(pa)) return setMsg($("predMsg"), false, "Sisesta numbrid.");
+        try{
+          await call("predictions",{method:"POST", body: JSON.stringify({match_id: mid, pred_home: ph, pred_away: pa})});
+          setMsg($("predMsg"), true, "Salvestatud.");
+          await loadMatchesAndPreds();
+          await loadLeaderboard();
+        }catch(e){
+          setMsg($("predMsg"), false, e.message);
+        }
+      });
+    });
+  }catch(e){
+    setMsg($("predMsg"), false, e.message);
+  }
+}
+
+async function loadLeaderboard(){
+  const tbody = $("lbTable").querySelector("tbody");
+  tbody.innerHTML = "";
+  $("lbMsg").textContent = "";
+  try{
+    const r = await call("leaderboard",{method:"GET"});
+    for (const row of r.leaderboard){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${row.display_name}</td><td class="right">${row.points}</td>`;
+      tbody.appendChild(tr);
+    }
+  }catch(e){
+    setMsg($("lbMsg"), false, e.message);
+  }
+}
+
+async function loadPlayers(){
+  const tbody = $("pTable").querySelector("tbody");
+  tbody.innerHTML = "";
+  if (!(me && me.is_admin)) return;
+  try{
+    const r = await call("admin/players",{method:"GET"});
+    for (const pl of r.players){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${pl.display_name}</td>
+        <td>${pl.username}</td>
+        <td>${pl.is_admin ? "jah" : "ei"}</td>
+        <td class="right">
+          <button data-reset="${pl.id}">Uus parool</button>
+          <button data-del="${pl.id}">Kustuta</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+    tbody.querySelectorAll("button[data-reset]").forEach(b=>{
+      b.addEventListener("click", async ()=>{
+        const id = b.getAttribute("data-reset");
+        const np = prompt("Uus parool (min 6):");
+        if (!np) return;
+        try{
+          await call(`admin/players/${id}`,{method:"PUT", body: JSON.stringify({password: np})});
+          setMsg($("adminMsg"), true, "Parool muudetud.");
+        }catch(e){
+          setMsg($("adminMsg"), false, e.message);
+        }
+      });
+    });
+    tbody.querySelectorAll("button[data-del]").forEach(b=>{
+      b.addEventListener("click", async ()=>{
+        const id = b.getAttribute("data-del");
+        if (!confirm("Kustutan mängija?")) return;
+        try{
+          await call(`admin/players/${id}`,{method:"DELETE"});
+          setMsg($("adminMsg"), true, "Kustutatud.");
+          await loadPlayers();
+          await loadLeaderboard();
+        }catch(e){
+          setMsg($("adminMsg"), false, e.message);
+        }
+      });
+    });
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+}
+
+// Events
+$("btnHealth").onclick = async ()=>{
+  try{ const r = await call("health",{method:"GET"}); setMsg($("quickMsg"), true, r.time); }
+  catch(e){ setMsg($("quickMsg"), false, e.message); }
+};
+
+$("btnSeed").onclick = async ()=>{
+  if (!(me && me.is_admin)) return setMsg($("quickMsg"), false, "Ainult admin.");
+  try{
+    const r = await call("admin/seed/matches",{method:"POST"});
+    setMsg($("quickMsg"), true, `Mängud lisatud või uuendatud: ${r.inserted_or_updated}`);
+    await loadMatchesAndPreds();
+  }catch(e){
+    setMsg($("quickMsg"), false, e.message);
+  }
+};
+
+const r = await call("setup/admin",{method:"POST", body: JSON.stringify(body)});
+    setMsg($("setupMsg"), true, `Admin loodud: ${r.admin.username}`);
+    await loadAll();
+  }catch(e){
+    setMsg($("setupMsg"), false, e.message);
+  }
+};
+
+$("btnLogin").onclick = async ()=>{
+  try{
+    const r = await call("login",{method:"POST", body: JSON.stringify({username:$("u").value.trim(), password:$("p").value})});
+    token = r.token;
+    localStorage.setItem("token", token);
+    setMsg($("loginMsg"), true, `Sisse logitud: ${r.user.display_name}`);
+    await loadAll();
+  }catch(e){
+    setMsg($("loginMsg"), false, e.message);
+  }
+};
+
+$("btnLogout").onclick = async ()=>{
+  token=""; me=null;
+  localStorage.removeItem("token");
+  setMsg($("loginMsg"), true, "Välja logitud.");
+  await loadAll();
+};
+
+$("btnPass").onclick = async ()=>{
+  if (!token) return setMsg($("loginMsg"), false, "Logi sisse.");
+  try{
+    await call("password",{method:"POST", body: JSON.stringify({old_password:$("oldp").value, new_password:$("newp").value})});
+    setMsg($("loginMsg"), true, "Parool muudetud.");
+    $("oldp").value=""; $("newp").value="";
+  }catch(e){
+    setMsg($("loginMsg"), false, e.message);
+  }
+};
+
+$("btnAddPlayer").onclick = async ()=>{
+  if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
+  try{
+    const body = { username:$("pu2").value.trim(), display_name:$("pn2").value.trim(), password:$("pp2").value, is_admin: $("pa2").value==="true" };
+    await call("admin/players",{method:"POST", body: JSON.stringify(body)});
+    setMsg($("adminMsg"), true, "Mängija lisatud.");
+    $("pu2").value=""; $("pn2").value=""; $("pp2").value="";
+    await loadPlayers();
+    await loadLeaderboard();
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+};
+
+
+
+$("btnSync").onclick = async ()=>{
+  if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
+  try{
+    const r = await call("admin/sync/schedule",{method:"POST"});
+    setMsg($("adminMsg"), true, `Valmis. Uuendatud: ${r.updated}. Leitud alagrupis: ${r.group_parsed}, play off: ${r.knockout_parsed}`);
+    await loadMatchesAndPreds();
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+};
+
+$("btnImport").onclick = async ()=>{
+  if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
+  try{
+    const raw = $("imp").value.trim();
+    if (!raw) return setMsg($("adminMsg"), false, "Kleebi read siia.");
+    const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    const items = [];
+    for (const ln of lines){
+      const parts = ln.split(",").map(x=>x.trim());
+      if (parts.length < 3) continue;
+      const match_no = Number(parts[0]);
+      const date = parts[1];
+      const time = parts[2];
+      if (!match_no || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,2}:\d{2}$/.test(time)) continue;
+      items.push({ match_no, date_et: date, time_et: time });
+    }
+    if (!items.length) return setMsg($("adminMsg"), false, "Ei leidnud ühtegi korrektset rida.");
+    const r = await call("admin/import/kickoffs",{method:"POST", body: JSON.stringify({ items })});
+    setMsg($("adminMsg"), true, `Aegu uuendatud: ${r.updated}`);
+    await loadMatchesAndPreds();
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+};
+
+$("btnSetFinal").onclick = async ()=>{
+  if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
+  try{
+    const id = Number($("mid").value);
+    const fh = Number($("fh").value);
+    const fa = Number($("fa").value);
+    if (!id || !Number.isFinite(fh) || !Number.isFinite(fa)) return setMsg($("adminMsg"), false, "Sisesta match id ja numbrid.");
+    await call(`admin/matches/${id}`,{method:"PUT", body: JSON.stringify({final_home: fh, final_away: fa, is_finished: true})});
+    setMsg($("adminMsg"), true, "Tulemus salvestatud.");
+    await loadMatchesAndPreds();
+    await loadLeaderboard();
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+};
+
+$("btnReload").onclick = loadAll;
+
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    const name = t.getAttribute("data-tab");
+    ["pred","lb","admin"].forEach(id=>$(id).classList.add("hide"));
+    $(name).classList.remove("hide");
+  });
+});
+
+loadAll();
+</script>
+</body>
+</html>
