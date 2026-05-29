@@ -168,3 +168,9 @@ Ametlikus ajakava failis olnud placeholderid on asendatud praegu teadaolevate ri
 - FIFA 2 → Iraq
 
 Knockout-mängudes jäävad kohatäitjad kujul W73, 2A jne, sest need selguvad turniiri käigus.
+
+
+## Kui admin vaates tuleb viga location veeru kohta
+Käivita Supabase SQL Editoris fail `sql/fix_location_column.sql`.
+Pärast seda vajuta admin vaates uuesti `Lae ametlik mängutabel`.
+See asendab vanad `GroupTeam...` read ametliku FIFA 2026 tabeli ridadega.
