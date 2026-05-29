@@ -12,9 +12,9 @@
     .sub{color:var(--muted);font-size:14px}
     .wrap{max-width:1100px;margin:0 auto;padding:12px 18px 28px}
 
-    .brand{display:flex;gap:14px;align-items:center}
-    .logo{width:280px;max-width:55vw;display:flex;align-items:center;justify-content:flex-start}
-    .logo img{width:100%;height:auto;display:block;border-radius:0;background:transparent}
+    .brand{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+    .logo{width:220px;max-width:48vw;display:flex;align-items:center;justify-content:flex-start}
+    .logo img{width:100%;height:auto;display:block;background:transparent}
     .grid{display:grid;gap:14px}
     @media(min-width:900px){.grid.cols3{grid-template-columns:1.2fr 1fr 1fr}}
     @media(min-width:900px){.grid.cols2{grid-template-columns:1.3fr 1fr}}
@@ -43,7 +43,7 @@
     tr.color-yellow td{background:rgba(255,210,80,.16)}
     tr.color-orange td{background:rgba(255,149,0,.18)}
     tr.color-red td{background:rgba(255,107,107,.16)}
-    .others{margin-top:8px;font-size:12px;line-height:1.35;color:var(--muted);text-align:left}
+    .others{font-size:12px;line-height:1.35;color:var(--muted);text-align:left}
     .others strong{color:var(--text)}
     .others-list{display:flex;flex-direction:column;gap:2px;margin-top:4px}
     .score-badge{display:inline-block;min-width:24px;padding:2px 6px;border:1px solid var(--line);border-radius:999px;margin-left:6px}
@@ -52,15 +52,14 @@
 </head>
 <body>
   
+  
   <header>
     <div class="brand">
       <div class="logo" aria-label="Samsung logo"><img src="assets/samsung-logo.png" alt="Samsung"></div>
-      <div>
-        <h1>Samsung JalkaMM 2026 ennustus</h1>
-        <div class="sub" id="topSub"></div>
-      </div>
+      <h1>JalkaMM 2026 ennustus</h1>
     </div>
   </header>
+
 
 
   <div class="wrap">
@@ -108,6 +107,7 @@
           <div class="tabs">
             <button class="tab active" data-tab="pred">Ennustused</button>
             <button class="tab" data-tab="lb">Edetabel</button>
+            <button class="tab" data-tab="others">Teiste ennustused</button>
             <button class="tab" data-tab="account">Minu konto</button>
             <button class="tab" data-tab="admin">Admin</button>
           </div>
@@ -289,8 +289,6 @@ async function refreshMe(){
     localStorage.removeItem("token");
   }
   setWho();
-  const ts = document.getElementById('topSub');
-  if (ts) ts.textContent = me ? '' : '';
 }
 
 async function loadAll(){
@@ -298,6 +296,7 @@ async function loadAll(){
   document.getElementById('viewsCard').classList.toggle('hide', !me);
   await loadMatchesAndPreds();
   await loadLeaderboard();
+  await loadOthersView();
   await loadPlayers();
   toggleAdminTab();
 }
@@ -328,7 +327,6 @@ async function loadMatchesAndPreds(){
     const publicMap = pub.predictions_by_match || {};
     for (const row of m.matches){
       const pr = map.get(row.id);
-      const others = publicMap[row.id] || [];
       const tr = document.createElement("tr");
       const final = (row.final_home===null || row.final_away===null) ? "" : `${row.final_home}:${row.final_away}`;
       const ko = row.kickoff_utc ? new Date(row.kickoff_utc) : null;
@@ -339,7 +337,6 @@ const finished = !!(row.is_finished || final);
 const locationAndTime = `${row.location || ""}${row.location && koTxt ? " • " : ""}${koTxt}`;
 const colorClass = pointColorClass(row, pr);
 if (finished && colorClass) tr.className = `row-finished ${colorClass}`;
-const othersHtml = (locked || finished) ? renderOthers(others) : "";
 tr.innerHTML = `
   <td>${row.match_no}</td>
   <td><span class="pill">${row.stage}</span></td>
@@ -350,7 +347,6 @@ tr.innerHTML = `
     <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
     <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" ${locked ? "disabled" : ""}>
     <button data-save="${row.id}" ${locked ? "disabled" : ""}>Salvesta</button>
-    ${othersHtml}
   </td>
   <td class="right">${pr?pr.points:0}</td>
 `;
@@ -392,6 +388,52 @@ async function loadLeaderboard(){
     }
   }catch(e){
     setMsg($("lbMsg"), false, e.message);
+  }
+}
+
+
+async function loadOthersView(){
+  const tbody = $("othersTable").querySelector("tbody");
+  tbody.innerHTML = "";
+  $("othersMsg").textContent = "";
+  if (!token) return;
+
+  try{
+    const [m, pub] = await Promise.all([
+      call("matches",{method:"GET"}),
+      call("predictions/public",{method:"GET"})
+    ]);
+
+    const matches = m.matches || [];
+    const publicMap = pub.predictions_by_match || {};
+    let rows = 0;
+
+    for (const row of matches){
+      const others = publicMap[row.id] || [];
+      if (!others.length) continue;
+
+      const ko = row.kickoff_utc ? new Date(row.kickoff_utc) : null;
+      const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
+      const locationAndTime = `${row.location || ""}${row.location && koTxt ? " • " : ""}${koTxt}`;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${row.match_no}</td>
+        <td><span class="pill">${row.stage}</span></td>
+        <td>${row.home}</td>
+        <td>${row.away}</td>
+        <td>${locationAndTime}</td>
+        <td>${renderOthers(others)}</td>
+      `;
+      tbody.appendChild(tr);
+      rows += 1;
+    }
+
+    if (!rows) {
+      $("othersMsg").textContent = "Veel pole ühtegi lukus või lõppenud mängu, mille kohta teiste ennustusi näidata.";
+    }
+  }catch(e){
+    setMsg($("othersMsg"), false, e.message);
   }
 }
 
@@ -656,7 +698,7 @@ document.querySelectorAll(".tab").forEach(t=>{
     document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
     t.classList.add("active");
     const name = t.getAttribute("data-tab");
-    ["pred","lb","account","admin"].forEach(id=>$(id).classList.add("hide"));
+    ["pred","lb","others","account","admin"].forEach(id=>$(id).classList.add("hide"));
     $(name).classList.remove("hide");
   });
 });
