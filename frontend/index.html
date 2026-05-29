@@ -112,9 +112,8 @@
         <table id="mTable">
           <thead>
             <tr>
-              <th>#</th><th>Etapp</th><th>Kodu</th><th>Võõrsil</th><th>Asukoht</th><th>Algab (Eesti aeg)</th>
+              <th>Mängu nr</th><th>Alagrupp</th><th>Kodumeeskond</th><th>Võõrsilmeeskond</th><th>Asukoht ja kellaaeg (Eesti aeg)</th>
               <th class="right">Sinu ennustus</th>
-              <th class="right">Lõpp</th>
               <th class="right">Punktid</th>
             </tr>
           </thead>
@@ -306,18 +305,18 @@ async function loadMatchesAndPreds(){
 const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
 const locked = !!(ko && (Date.now() >= (ko.getTime() - 60*60*1000)) && !(me && me.is_admin));
 const lockHint = locked ? "Lukus" : "";
+const locationAndTime = `${row.location || ""}${row.location && koTxt ? " • " : ""}${koTxt}`;
 tr.innerHTML = `
   <td>${row.match_no}</td>
   <td><span class="pill">${row.stage}</span></td>
   <td>${row.home}</td>
   <td>${row.away}</td>
-  <td>${koTxt} ${lockHint ? `<span class="pill">${lockHint}</span>` : ""}</td>
+  <td>${locationAndTime} ${lockHint ? `<span class="pill">${lockHint}</span>` : ""}</td>
   <td class="right">
     <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
     <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" ${locked ? "disabled" : ""}>
     <button data-save="${row.id}" ${locked ? "disabled" : ""}>Salvesta</button>
   </td>
-  <td class="right">${final}</td>
   <td class="right">${pr?pr.points:0}</td>
 `;
       tbody.appendChild(tr);
