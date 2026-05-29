@@ -18,6 +18,7 @@ create table if not exists public.matches (
   kickoff_utc timestamptz,
   home text not null,
   away text not null,
+  location text,
   final_home int,
   final_away int,
   is_finished boolean not null default false,

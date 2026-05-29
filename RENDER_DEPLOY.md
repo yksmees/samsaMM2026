@@ -1,3 +1,16 @@
+# Render deploy
+
+1. Lae selle ZIP-i sisu GitHubi
+2. Renderis loo Web Service oma repo pealt
+3. Pane env:
+   - SUPABASE_URL
+   - SUPABASE_SERVICE_ROLE_KEY
+   - JWT_SECRET
+4. Start command: `npm start`
+5. Ava `/api/health`
+
+Kui database on juba tehtud, võid kohe kasutada.
+Kui mitte, käivita Supabase SQL Editoris `sql/schema.sql` ja `sql/leaderboard_rpc.sql`.
 # Render deploy juhend
 
 See versioon on tehtud Netlify asemel Renderi jaoks.

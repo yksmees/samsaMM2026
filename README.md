@@ -1,5 +1,31 @@
 # Samsung JalkaMM 2026 ennustus
 
+See pakett on Render + Supabase jaoks.
+
+## Mis on tehtud
+- Logimine jäetud samaks
+- Ennustuskeskkond lähtub `vohma_ennustus.xlsx` punktisüsteemist
+- FIFA World Cup 2026 kõik 104 mängu tulevad `FIFA Men's World Cup 2026 Sortable Schedule.xlsx` põhjal
+- Mängude ajad salvestatakse UTC-s, aga kuvatakse Eesti aja järgi
+- Ennustus läheb lukku 1 tund enne kickoff aega
+- Admin saab:
+  - laadida ametliku mängutabeli
+  - lisada uue mängu
+  - muuta käsitsi mängu tulemust
+  - muuta käsitsi mängu aega Eesti aja järgi, et testida lukku
+
+## Punktisüsteem vohma tabeli järgi
+- 4p täpne skoor
+- kui tulemus on õige: 2p + 1p õige koduväravate arvu eest + 1p õige võõrsilväravate arvu eest
+- kui tulemus on vale: 1p iga õige väravate arvu eest
+
+## Render env
+- SUPABASE_URL
+- SUPABASE_SERVICE_ROLE_KEY
+- JWT_SECRET
+
+# Samsung JalkaMM 2026 ennustus
+
 # Render deploy juhend
 
 See versioon on tehtud Netlify asemel Renderi jaoks.

@@ -107,12 +107,12 @@
       </div>
 
       <div id="pred" style="margin-top:8px">
-        <div class="sub">Sisesta oma ennustus. Ennustus lukustub 1 tund enne mängu algust. Punktid: 4p täpne skoor, 3p õige tulemus + koduväravad, 2p õige tulemus, 1p õiged võõrsilväravad.</div>
+        <div class="sub">Sisesta oma ennustus. Ennustus lukustub 1 tund enne mängu algust. Punktid: 4 täpne skoor, 2 + õiged väravad kui tulemus on õige, 1 punkt iga õige väravate arvu eest ka vale tulemuse korral. Punktid: 4p täpne skoor, 3p õige tulemus + koduväravad, 2p õige tulemus, 1p õiged võõrsilväravad.</div>
         <div id="predMsg" class="msg"></div>
         <table id="mTable">
           <thead>
             <tr>
-              <th>#</th><th>Etapp</th><th>Kodu</th><th>Võõrsil</th><th>Algab (Eesti aeg)</th>
+              <th>#</th><th>Etapp</th><th>Kodu</th><th>Võõrsil</th><th>Asukoht</th><th>Algab (Eesti aeg)</th>
               <th class="right">Sinu ennustus</th>
               <th class="right">Lõpp</th>
               <th class="right">Punktid</th>
@@ -146,7 +146,7 @@
 </div>
 
       <div id="admin" class="hide" style="margin-top:8px">
-        <div class="sub">Näed ainult adminina: mängijate lisamine ja mängude haldus.</div>
+        <div class="sub">Näed ainult adminina: mängijate lisamine, mängude laadimine, tulemuste ja algusaegade testimine.</div>
         <div id="adminMsg" class="msg"></div>
         <div class="row" style="margin-top:10px">
           <button id="btnHealth">API tervis</button>
@@ -190,7 +190,24 @@
               <input id="timeClock" placeholder="Eesti aeg, nt 22:00" />
               <button id="btnSetKickoff" class="primary">Salvesta mänguaeg</button>
             </div>
-          </div>
+          
+<div class="card">
+  <strong>Lisa uus mäng</strong>
+  <div class="row" style="margin-top:10px">
+    <input id="amNo" class="small" placeholder="mängu #" />
+    <input id="amStage" placeholder="etapp" />
+    <input id="amHome" placeholder="kodu" />
+    <input id="amAway" placeholder="võõrsil" />
+  </div>
+  <div class="row" style="margin-top:10px">
+    <input id="amDate" placeholder="kuupäev YYYY-MM-DD" />
+    <input id="amTime" placeholder="Eesti aeg HH:MM" />
+    <input id="amLocation" placeholder="asukoht" />
+    <button id="btnAddMatch" class="primary">Lisa mäng</button>
+  </div>
+</div>
+
+</div>
         </div>
 
 <div class="card">
@@ -529,6 +546,53 @@ $("btnSetKickoff").onclick = async ()=>{
     const utc = new Date(Date.UTC(Y, M-1, D, hh-3, mm, 0));
     await call(`admin/matches/by-no/${matchNo}`,{method:"PUT", body: JSON.stringify({kickoff_utc: utc.toISOString()})});
     setMsg($("adminMsg"), true, "Mänguaeg salvestatud Eesti aja järgi.");
+    await loadMatchesAndPreds();
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+};
+
+
+$("btnAddMatch").onclick = async ()=>{
+  if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
+  try{
+    const match_no = Number($("amNo").value);
+    const stage = $("amStage").value.trim();
+    const home = $("amHome").value.trim();
+    const away = $("amAway").value.trim();
+    const location = $("amLocation").value.trim();
+    const d = $("amDate").value.trim();
+    const t = $("amTime").value.trim();
+
+    if (!match_no || !stage || !home || !away || !/^\d{4}-\d{2}-\d{2}$/.test(d) || !/^\d{1,2}:\d{2}$/.test(t)) {
+      return setMsg($("adminMsg"), false, "Sisesta mängu #, etapp, meeskonnad, kuupäev YYYY-MM-DD ja Eesti aeg HH:MM.");
+    }
+
+    const [Y,M,D] = d.split("-").map(Number);
+    const [hh,mm] = t.split(":").map(Number);
+    const utc = new Date(Date.UTC(Y, M-1, D, hh-3, mm, 0));
+
+    await call("admin/matches", {
+      method:"POST",
+      body: JSON.stringify({
+        match_no,
+        stage,
+        home,
+        away,
+        location,
+        kickoff_utc: utc.toISOString(),
+        is_finished: false
+      })
+    });
+
+    setMsg($("adminMsg"), true, "Mäng lisatud.");
+    $("amNo").value="";
+    $("amStage").value="";
+    $("amHome").value="";
+    $("amAway").value="";
+    $("amDate").value="";
+    $("amTime").value="";
+    $("amLocation").value="";
     await loadMatchesAndPreds();
   }catch(e){
     setMsg($("adminMsg"), false, e.message);
