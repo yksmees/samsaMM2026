@@ -156,3 +156,15 @@ Mängud tulevad failist `FIFA Men's World Cup 2026 Sortable Schedule.xlsx`. Ajad
 
 ## Admin testid
 Admin vaates saab käsitsi sisestada mängu tulemuse mängu numbri järgi ja see arvutab punktid ümber. Samas saab käsitsi sisestada mängu aja Eesti aja järgi, et testida 1 tunni lukku.
+
+
+## Riikide nimed
+Ametlikus ajakava failis olnud placeholderid on asendatud praegu teadaolevate riikidega:
+- UEFA A → Bosnia and Herzegovina
+- UEFA B → Sweden
+- UEFA C → Türkiye
+- UEFA D → Czechia
+- FIFA 1 → Congo DR
+- FIFA 2 → Iraq
+
+Knockout-mängudes jäävad kohatäitjad kujul W73, 2A jne, sest need selguvad turniiri käigus.
