@@ -174,3 +174,13 @@ Knockout-mängudes jäävad kohatäitjad kujul W73, 2A jne, sest need selguvad t
 Käivita Supabase SQL Editoris fail `sql/fix_location_column.sql`.
 Pärast seda vajuta admin vaates uuesti `Lae ametlik mängutabel`.
 See asendab vanad `GroupTeam...` read ametliku FIFA 2026 tabeli ridadega.
+
+
+## Lisavaade pärast lukku ja värvikoodid
+- Kui mäng on lukku läinud, näevad kõik sisselogitud kasutajad teiste mängijate ennustusi.
+- Lõppenud mängud värvuvad tabelis:
+  - roheline = täpne skoor
+  - sinine = 3 punkti
+  - kollane = 2 punkti
+  - oranž = 1 punkt
+  - punane = 0 punkti

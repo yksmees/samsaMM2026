@@ -37,6 +37,17 @@
     .pill{display:inline-block;padding:2px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px}
     .right{text-align:right}
     .hide{display:none}
+    tr.row-finished td{transition:background .2s ease}
+    tr.color-green td{background:rgba(66,211,146,.16)}
+    tr.color-blue td{background:rgba(80,140,255,.16)}
+    tr.color-yellow td{background:rgba(255,210,80,.16)}
+    tr.color-orange td{background:rgba(255,149,0,.18)}
+    tr.color-red td{background:rgba(255,107,107,.16)}
+    .others{margin-top:8px;font-size:12px;line-height:1.35;color:var(--muted);text-align:left}
+    .others strong{color:var(--text)}
+    .others-list{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+    .score-badge{display:inline-block;min-width:24px;padding:2px 6px;border:1px solid var(--line);border-radius:999px;margin-left:6px}
+
   </style>
 </head>
 <body>
@@ -45,7 +56,7 @@
     <div class="brand">
       <div class="logo" aria-label="Samsung logo"><img src="assets/samsung-logo.png" alt="Samsung"></div>
       <div>
-        <h1>JalkaMM 2026 ennustus</h1>
+        <h1>Samsung JalkaMM 2026 ennustus</h1>
         <div class="sub" id="topSub"></div>
       </div>
     </div>
@@ -251,6 +262,22 @@ function setWho(){
   $("who").textContent = me ? `${me.display_name} (${me.username})${me.is_admin ? " admin" : ""}` : "väljas";
 }
 
+function pointColorClass(row, pr){
+  const finished = row.is_finished || (row.final_home !== null && row.final_away !== null && row.final_home !== undefined && row.final_away !== undefined);
+  if (!finished || !pr) return "";
+  if ((pr.points || 0) >= 4) return "color-green";
+  if ((pr.points || 0) === 3) return "color-blue";
+  if ((pr.points || 0) === 2) return "color-yellow";
+  if ((pr.points || 0) === 1) return "color-orange";
+  return "color-red";
+}
+
+function renderOthers(preds){
+  if (!preds || !preds.length) return "";
+  const rows = preds.map(p => `<div>${p.display_name}: <span class="score-badge">${p.pred_home}:${p.pred_away}</span></div>`).join("");
+  return `<div class="others"><strong>Teiste ennustused</strong><div class="others-list">${rows}</div></div>`;
+}
+
 async function refreshMe(){
   if (!token){ me=null; setWho(); return; }
   try{
@@ -292,20 +319,27 @@ async function loadMatchesAndPreds(){
   tbody.innerHTML = "";
   $("predMsg").textContent = "";
   try{
-    const [m, p] = await Promise.all([
+    const [m, p, pub] = await Promise.all([
       call("matches",{method:"GET"}),
-      token ? call("predictions",{method:"GET"}) : Promise.resolve({predictions:[]})
+      token ? call("predictions",{method:"GET"}) : Promise.resolve({predictions:[]}),
+      token ? call("predictions/public",{method:"GET"}) : Promise.resolve({predictions_by_match:{}})
     ]);
     const map = new Map((p.predictions||[]).map(x=>[x.match_id, x]));
+    const publicMap = pub.predictions_by_match || {};
     for (const row of m.matches){
       const pr = map.get(row.id);
+      const others = publicMap[row.id] || [];
       const tr = document.createElement("tr");
       const final = (row.final_home===null || row.final_away===null) ? "" : `${row.final_home}:${row.final_away}`;
       const ko = row.kickoff_utc ? new Date(row.kickoff_utc) : null;
 const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
 const locked = !!(ko && (Date.now() >= (ko.getTime() - 60*60*1000)) && !(me && me.is_admin));
 const lockHint = locked ? "Lukus" : "";
+const finished = !!(row.is_finished || final);
 const locationAndTime = `${row.location || ""}${row.location && koTxt ? " • " : ""}${koTxt}`;
+const colorClass = pointColorClass(row, pr);
+if (finished && colorClass) tr.className = `row-finished ${colorClass}`;
+const othersHtml = (locked || finished) ? renderOthers(others) : "";
 tr.innerHTML = `
   <td>${row.match_no}</td>
   <td><span class="pill">${row.stage}</span></td>
@@ -316,6 +350,7 @@ tr.innerHTML = `
     <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
     <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" ${locked ? "disabled" : ""}>
     <button data-save="${row.id}" ${locked ? "disabled" : ""}>Salvesta</button>
+    ${othersHtml}
   </td>
   <td class="right">${pr?pr.points:0}</td>
 `;

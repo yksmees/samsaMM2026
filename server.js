@@ -462,6 +462,51 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
       return json(200, { ok: true, predictions: q.data });
     }
 
+// Public view of other players' predictions after lock or after match end
+if (event.httpMethod === "GET" && route === "predictions/public") {
+  const u = userFrom(event);
+  if (!u) return json(401, { error: "Pole sisse logitud." });
+
+  const matchesRes = await sb.from("matches").select("id,kickoff_utc,is_finished");
+  if (matchesRes.error) return json(500, { error: matchesRes.error.message });
+
+  const now = Date.now();
+  const openMatchIds = [];
+  for (const m of matchesRes.data || []) {
+    const kickoff = m.kickoff_utc ? new Date(m.kickoff_utc).getTime() : null;
+    const locked = m.is_finished || (kickoff && now >= (kickoff - 60 * 60 * 1000));
+    if (locked) openMatchIds.push(m.id);
+  }
+
+  if (!openMatchIds.length) return json(200, { ok: true, predictions_by_match: {} });
+
+  const predsRes = await sb
+    .from("predictions")
+    .select("match_id,player_id,pred_home,pred_away")
+    .in("match_id", openMatchIds);
+
+  if (predsRes.error) return json(500, { error: predsRes.error.message });
+
+  const playersRes = await sb.from("players").select("id,display_name");
+  if (playersRes.error) return json(500, { error: playersRes.error.message });
+
+  const playerMap = new Map((playersRes.data || []).map(p => [p.id, p.display_name]));
+  const grouped = {};
+  for (const p of predsRes.data || []) {
+    if (p.player_id === u.sub) continue;
+    if (!grouped[p.match_id]) grouped[p.match_id] = [];
+    grouped[p.match_id].push({
+      player_id: p.player_id,
+      display_name: playerMap.get(p.player_id) || "Mängija",
+      pred_home: p.pred_home,
+      pred_away: p.pred_away
+    });
+  }
+
+  return json(200, { ok: true, predictions_by_match: grouped });
+}
+
+
     if (event.httpMethod === "POST" && route === "predictions") {
   const u = userFrom(event);
   if (!u) return json(401, { error: "Pole sisse logitud." });
