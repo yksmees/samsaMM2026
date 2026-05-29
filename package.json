@@ -1,18 +1,17 @@
 {
-  "name": "jalka-mm-2026-netlify-supabase-fullui",
+  "name": "samsung-jalkamm-2026-render",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "netlify dev",
-    "build": "echo \"no build\""
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2"
-  },
-  "devDependencies": {
-    "netlify-cli": "^17.22.0"
   }
 }
