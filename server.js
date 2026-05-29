@@ -1,3 +1,9 @@
+console.log("ENV:", {
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_SERVICE_ROLE_KEY ? "OK" : "MISSING"
+});
+
+
 import express from "express";
 import cors from "cors";
 import path from "path";
