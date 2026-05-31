@@ -155,6 +155,25 @@
   </div>
 </div>
 
+
+<div id="others" class="hide" style="margin-top:8px">
+  <div class="sub">Siin näed teiste mängijate ennustusi ainult nende mängude kohta, mis on lukus või lõppenud.</div>
+  <div id="othersMsg" class="msg"></div>
+  <table id="othersTable">
+    <thead>
+      <tr>
+        <th>Mängu nr</th>
+        <th>Alagrupp</th>
+        <th>Kodumeeskond</th>
+        <th>Võõrsilmeeskond</th>
+        <th>Asukoht ja kellaaeg (Eesti aeg)</th>
+        <th>Teiste ennustused</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
       <div id="admin" class="hide" style="margin-top:8px">
         <div class="sub">Näed ainult adminina: mängijate lisamine, mängude laadimine, tulemuste ja algusaegade testimine.</div>
         <div id="adminMsg" class="msg"></div>
@@ -306,7 +325,7 @@ function toggleAdminTab(){
   document.querySelector('[data-tab="admin"]').style.display = isA ? "" : "none";
   if (!isA){
     $("admin").classList.add("hide");
-    $("account").classList.add("hide");
+    if ($("account")) $("account").classList.add("hide");
     document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
     document.querySelector('[data-tab="pred"]').classList.add("active");
     $("pred").classList.remove("hide");
@@ -393,7 +412,9 @@ async function loadLeaderboard(){
 
 
 async function loadOthersView(){
-  const tbody = $("othersTable").querySelector("tbody");
+  const othersTable = $("othersTable");
+  if (!othersTable) return;
+  const tbody = othersTable.querySelector("tbody");
   tbody.innerHTML = "";
   $("othersMsg").textContent = "";
   if (!token) return;
@@ -698,8 +719,8 @@ document.querySelectorAll(".tab").forEach(t=>{
     document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
     t.classList.add("active");
     const name = t.getAttribute("data-tab");
-    ["pred","lb","others","account","admin"].forEach(id=>$(id).classList.add("hide"));
-    $(name).classList.remove("hide");
+    ["pred","lb","others","account","admin"].forEach(id=>{ const el=$(id); if (el) el.classList.add("hide"); });
+    const target = $(name); if (target) target.classList.remove("hide");
   });
 });
 
