@@ -63,7 +63,7 @@
       </div>
       <div id="headerUserBox" class="header-user hide">
         <span id="headerWho" class="pill"></span>
-        <button id="btnLogoutTop">Logi välja</button>
+        <button type="button" id="btnLogoutTop">Logi välja</button>
       </div>
     </div>
   </header>
@@ -81,8 +81,8 @@
         <div class="row" style="margin-top:10px">
           <input id="u" placeholder="kasutaja" />
           <input id="p" placeholder="parool" type="password" />
-          <button class="primary" id="btnLogin">Logi sisse</button>
-          <button id="btnLogout">Logi välja</button>
+          <button type="button" class="primary" id="btnLogin">Logi sisse</button>
+          <button type="button" id="btnLogout">Logi välja</button>
         </div>
 
 <details style="margin-top:10px">
@@ -91,7 +91,7 @@
     <input id="ru" placeholder="kasutajanimi" />
     <input id="rp" placeholder="parool (min 6)" type="password" />
     <input id="rp2" placeholder="parool uuesti" type="password" />
-    <button id="btnRegister" class="primary">Loo konto</button>
+    <button type="button" id="btnRegister" class="primary">Loo konto</button>
   </div>
 </details>
         <div id="loginMsg" class="msg"></div>
@@ -126,7 +126,7 @@
       </div>
 
       <div id="pred" style="margin-top:8px">
-        <div class="sub">Sisesta oma ennustus. Ennustus lukustub 1 tund enne mängu algust. Punktid: 4 täpne skoor, 2 + õiged väravad kui tulemus on õige, 1 punkt iga õige väravate arvu eest ka vale tulemuse korral. Punktid: 4p täpne skoor, 3p õige tulemus + koduväravad, 2p õige tulemus, 1p õiged võõrsilväravad.</div>
+        <div class="sub">Sisesta oma ennustus. Ennustus lukustub 1 tund enne mängu algust. Punktid: 4 täpne skoor, 2 + õiged väravad kui tulemus on õige, 1 punkt iga õige väravate arvu eest ka vale tulemuse korral.</div>
         <div id="predMsg" class="msg"></div>
         <table id="mTable">
           <thead>
@@ -157,7 +157,7 @@
     <div class="row" style="margin-top:10px">
       <input id="oldp" placeholder="praegune parool" type="password" />
       <input id="newp" placeholder="uus parool (min 6)" type="password" />
-      <button id="btnPass" class="primary">Muuda parool</button>
+      <button type="button" id="btnPass" class="primary">Muuda parool</button>
     </div>
     <div id="accountMsg" class="msg"></div>
   </div>
@@ -377,14 +377,15 @@ tr.innerHTML = `
   <td class="right">
     <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
     <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" ${locked ? "disabled" : ""}>
-    <button data-save="${row.id}" ${locked ? "disabled" : ""}>Salvesta</button>
+    <button type="button" data-save="${row.id}" ${locked ? "disabled" : ""}>Salvesta</button>
   </td>
   <td class="right">${pr?pr.points:0}</td>
 `;
       tbody.appendChild(tr);
     }
     tbody.querySelectorAll("button[data-save]").forEach(btn=>{
-      btn.addEventListener("click", async ()=>{
+      btn.addEventListener("click", async (e)=>{
+        e.preventDefault();
         if (!token) return setMsg($("predMsg"), false, "Logi sisse enne ennustamist.");
         const mid = Number(btn.getAttribute("data-save"));
         const h = tbody.querySelector(`input[data-mid="${mid}"][data-side="h"]`).value;
