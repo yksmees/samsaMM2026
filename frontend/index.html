@@ -12,7 +12,9 @@
     .sub{color:var(--muted);font-size:14px}
     .wrap{max-width:1100px;margin:0 auto;padding:12px 18px 28px}
 
+    .headerbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
     .brand{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+    .header-user{display:flex;gap:10px;align-items:center}
     .logo{width:220px;max-width:48vw;display:flex;align-items:center;justify-content:flex-start}
     .logo img{width:100%;height:auto;display:block;background:transparent}
     .grid{display:grid;gap:14px}
@@ -54,9 +56,15 @@
   
   
   <header>
-    <div class="brand">
-      <div class="logo" aria-label="Samsung logo"><img src="assets/samsung-logo.png" alt="Samsung"></div>
-      <h1>JalkaMM 2026 ennustus</h1>
+    <div class="headerbar">
+      <div class="brand">
+        <div class="logo" aria-label="Samsung logo"><img src="assets/samsung-logo.png" alt="Samsung"></div>
+        <h1>JalkaMM 2026 ennustus</h1>
+      </div>
+      <div id="headerUserBox" class="header-user hide">
+        <span id="headerWho" class="pill"></span>
+        <button id="btnLogoutTop">Logi välja</button>
+      </div>
     </div>
   </header>
 
@@ -65,7 +73,7 @@
   <div class="wrap">
     
     <div class="grid cols2">
-      <div class="card">
+      <div id="loginCard" class="card">
         <div class="row" style="justify-content:space-between">
           <strong>Login</strong>
           <span id="who" class="pill">väljas</span>
@@ -278,7 +286,11 @@ function setMsg(el, ok, text){
 }
 
 function setWho(){
-  $("who").textContent = me ? `${me.display_name} (${me.username})${me.is_admin ? " admin" : ""}` : "väljas";
+  const label = me ? `${me.display_name} (${me.username})${me.is_admin ? " admin" : ""}` : "väljas";
+  if ($("who")) $("who").textContent = label;
+  if ($("headerWho")) $("headerWho").textContent = label;
+  if ($("headerUserBox")) $("headerUserBox").classList.toggle("hide", !me);
+  if ($("loginCard")) $("loginCard").classList.toggle("hide", !!me);
 }
 
 function pointColorClass(row, pr){
@@ -557,12 +569,15 @@ $("btnRegister").onclick = async ()=>{
   }
 };
 
-$("btnLogout").onclick = async ()=>{
+async function doLogout(){
   token=""; me=null;
   localStorage.removeItem("token");
-  setMsg($("loginMsg"), true, "Välja logitud.");
+  if ($("loginMsg")) setMsg($("loginMsg"), true, "Välja logitud.");
   await loadAll();
-};
+}
+
+$("btnLogout").onclick = doLogout;
+if ($("btnLogoutTop")) $("btnLogoutTop").onclick = doLogout;
 
 $("btnPass").onclick = async ()=>{
   if (!token) return setMsg($("accountMsg"), false, "Logi sisse.");
