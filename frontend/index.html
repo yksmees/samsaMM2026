@@ -388,15 +388,19 @@ tr.innerHTML = `
         e.preventDefault();
         if (!token) return setMsg($("predMsg"), false, "Logi sisse enne ennustamist.");
         const mid = Number(btn.getAttribute("data-save"));
+        const rowEl = btn.closest("tr");
         const h = tbody.querySelector(`input[data-mid="${mid}"][data-side="h"]`).value;
         const a = tbody.querySelector(`input[data-mid="${mid}"][data-side="a"]`).value;
         const ph = Number(h), pa = Number(a);
         if (!Number.isFinite(ph) || !Number.isFinite(pa)) return setMsg($("predMsg"), false, "Sisesta numbrid.");
         try{
-          await call("predictions",{method:"POST", body: JSON.stringify({match_id: mid, pred_home: ph, pred_away: pa})});
+          const resp = await call("predictions",{method:"POST", body: JSON.stringify({match_id: mid, pred_home: ph, pred_away: pa})});
           setMsg($("predMsg"), true, "Salvestatud.");
-          await loadMatchesAndPreds();
+          if (rowEl && rowEl.lastElementChild && resp && resp.prediction) {
+            rowEl.lastElementChild.textContent = resp.prediction.points ?? 0;
+          }
           await loadLeaderboard();
+          await loadOthersView();
         }catch(e){
           setMsg($("predMsg"), false, e.message);
         }
