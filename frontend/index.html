@@ -15,6 +15,9 @@
     .headerbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
     .brand{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
     .header-user{display:flex;gap:10px;align-items:center}
+    .pred-cell{text-align:center}
+    .pred-controls{display:inline-flex;gap:8px;align-items:center;justify-content:center}
+    button.saved{background:linear-gradient(180deg,#2c8f5a,#1f6b43);border-color:rgba(66,211,146,.45)}
     .logo{width:220px;max-width:48vw;display:flex;align-items:center;justify-content:flex-start}
     .logo img{width:100%;height:auto;display:block;background:transparent}
     .grid{display:grid;gap:14px}
@@ -96,7 +99,7 @@
 </details>
         <div id="loginMsg" class="msg"></div>
       </div>
-      <div class="card">
+      <div id="quickStartCard" class="card">
         <strong>Kiire algus</strong>
         <div class="msg" style="margin-top:8px">
           1) Logi sisse või loo uus konto<br>
@@ -291,6 +294,7 @@ function setWho(){
   if ($("headerWho")) $("headerWho").textContent = label;
   if ($("headerUserBox")) $("headerUserBox").classList.toggle("hide", !me);
   if ($("loginCard")) $("loginCard").classList.toggle("hide", !!me);
+  if ($("quickStartCard")) $("quickStartCard").classList.toggle("hide", !!me);
 }
 
 function pointColorClass(row, pr){
@@ -374,28 +378,43 @@ tr.innerHTML = `
   <td>${row.home}</td>
   <td>${row.away}</td>
   <td>${locationAndTime} ${lockHint ? `<span class="pill">${lockHint}</span>` : ""}</td>
-  <td class="right">
-    <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
-    <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" ${locked ? "disabled" : ""}>
-    <button type="button" data-save="${row.id}" ${locked ? "disabled" : ""}>Salvesta</button>
+  <td class="pred-cell">
+    <div class="pred-controls">
+      <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
+      <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" ${locked ? "disabled" : ""}>
+      <button type="button" class="${pr ? "saved" : ""}" data-save="${row.id}" ${locked ? "disabled" : ""}>${pr ? "Salvestatud" : "Salvesta"}</button>
+    </div>
   </td>
   <td class="right">${pr?pr.points:0}</td>
 `;
       tbody.appendChild(tr);
     }
     tbody.querySelectorAll("button[data-save]").forEach(btn=>{
+      const mid = Number(btn.getAttribute("data-save"));
+      const hInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="h"]`);
+      const aInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="a"]`);
+
+      [hInput, aInput].forEach(inp=>{
+        if (!inp) return;
+        inp.addEventListener("input", ()=>{
+          btn.classList.remove("saved");
+          btn.textContent = "Salvesta";
+        });
+      });
+
       btn.addEventListener("click", async (e)=>{
         e.preventDefault();
         if (!token) return setMsg($("predMsg"), false, "Logi sisse enne ennustamist.");
-        const mid = Number(btn.getAttribute("data-save"));
         const rowEl = btn.closest("tr");
-        const h = tbody.querySelector(`input[data-mid="${mid}"][data-side="h"]`).value;
-        const a = tbody.querySelector(`input[data-mid="${mid}"][data-side="a"]`).value;
+        const h = hInput.value;
+        const a = aInput.value;
         const ph = Number(h), pa = Number(a);
         if (!Number.isFinite(ph) || !Number.isFinite(pa)) return setMsg($("predMsg"), false, "Sisesta numbrid.");
         try{
           const resp = await call("predictions",{method:"POST", body: JSON.stringify({match_id: mid, pred_home: ph, pred_away: pa})});
           setMsg($("predMsg"), true, "Salvestatud.");
+          btn.classList.add("saved");
+          btn.textContent = "Salvestatud";
           if (rowEl && rowEl.lastElementChild && resp && resp.prediction) {
             rowEl.lastElementChild.textContent = resp.prediction.points ?? 0;
           }
