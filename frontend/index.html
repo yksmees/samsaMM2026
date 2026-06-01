@@ -49,6 +49,16 @@
     tr.color-orange td{background:rgba(255,149,0,.18)}
     tr.color-red td{background:rgba(255,107,107,.16)}
     .others{font-size:12px;line-height:1.35;color:var(--muted);text-align:left}
+    .others-board-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;margin-top:10px;background:rgba(13,20,48,.35)}
+    .others-board-table{border-collapse:separate;border-spacing:0;min-width:max-content;width:max-content}
+    .others-board-table th,.others-board-table td{border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);padding:8px 10px;text-align:center;font-size:13px}
+    .others-board-table thead th{background:#0d1430;color:var(--text);font-weight:600}
+    .others-board-table .sticky-col{position:sticky;left:0;z-index:3;background:#0d1430;text-align:left;min-width:150px}
+    .others-board-table tbody .sticky-col{background:#111a33;z-index:2}
+    .others-board-table .match-top{font-size:12px;color:var(--muted)}
+    .others-board-table .match-teams{font-size:12px;line-height:1.25}
+    .others-board-table .correct-row th,.others-board-table .correct-row td{background:rgba(255,255,255,.04);font-weight:700}
+
     .others strong{color:var(--text)}
     .others-list{display:flex;flex-direction:column;gap:2px;margin-top:4px}
     .score-badge{display:inline-block;min-width:24px;padding:2px 6px;border:1px solid var(--line);border-radius:999px;margin-left:6px}
@@ -100,7 +110,7 @@
         <div id="loginMsg" class="msg"></div>
       </div>
       <div id="quickStartCard" class="card">
-        <strong>Kiire algus</strong>
+        <strong>Juhend</strong>
         <div class="msg" style="margin-top:8px">
           1) Logi sisse või loo uus konto<br>
           2) Ennusta mängude skoore<br>
@@ -167,25 +177,33 @@
 </div>
 
 
+
 <div id="others" class="hide" style="margin-top:8px">
-  <div class="sub">Siin näed teiste mängijate ennustusi ainult nende mängude kohta, mis on lukus või lõppenud.</div>
+  <div class="sub">Lõppenud mängud kuvatakse mängu numbri järjekorras. Alagrupitabel ja play-off tabel on eraldi, et neist oleks lihtne screenshot teha.</div>
   <div id="othersMsg" class="msg"></div>
-  <table id="othersTable">
-    <thead>
-      <tr>
-        <th>Mängu nr</th>
-        <th>Alagrupp</th>
-        <th>Kodumeeskond</th>
-        <th>Võõrsilmeeskond</th>
-        <th>Asukoht ja kellaaeg (Eesti aeg)</th>
-        <th>Teiste ennustused</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+
+  <div class="others-board-section" style="margin-top:12px">
+    <strong>Alagrupimängud</strong>
+    <div class="others-board-wrap">
+      <table id="othersGroupTable" class="others-board-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="others-board-section" style="margin-top:18px">
+    <strong>Play-off</strong>
+    <div class="others-board-wrap">
+      <table id="othersPlayoffTable" class="others-board-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
-      <div id="admin" class="hide" style="margin-top:8px">
+      <div id="admin" class="hide" style="margin-top:8px"> class="hide" style="margin-top:8px">
         <div class="sub">Näed ainult adminina: mängijate lisamine, mängude laadimine, tulemuste ja algusaegade testimine. Tulemusi saab sünkroniseerida ka API-Football tasuta plaaniga ning käsitsi muutmine jääb alles.</div>
         <div id="adminMsg" class="msg"></div>
         <div class="row" style="margin-top:10px">
@@ -448,50 +466,114 @@ async function loadLeaderboard(){
 }
 
 
+
 async function loadOthersView(){
-  const othersTable = $("othersTable");
-  if (!othersTable) return;
-  const tbody = othersTable.querySelector("tbody");
-  tbody.innerHTML = "";
+  const groupTable = $("othersGroupTable");
+  const playoffTable = $("othersPlayoffTable");
+  if (!groupTable || !playoffTable) return;
+
+  const groupHead = groupTable.querySelector("thead");
+  const groupBody = groupTable.querySelector("tbody");
+  const playoffHead = playoffTable.querySelector("thead");
+  const playoffBody = playoffTable.querySelector("tbody");
+
+  groupHead.innerHTML = "";
+  groupBody.innerHTML = "";
+  playoffHead.innerHTML = "";
+  playoffBody.innerHTML = "";
   $("othersMsg").textContent = "";
+
   if (!token) return;
 
   try{
-    const [m, pub] = await Promise.all([
-      call("matches",{method:"GET"}),
-      call("predictions/public",{method:"GET"})
-    ]);
+    const data = await call("predictions/matrix",{method:"GET"});
+    const players = data.players || [];
+    const matches = (data.matches || []).sort((a,b)=>a.match_no-b.match_no);
+    const predictions = data.predictions || [];
 
-    const matches = m.matches || [];
-    const publicMap = pub.predictions_by_match || {};
-    let rows = 0;
-
-    for (const row of matches){
-      const others = publicMap[row.id] || [];
-      if (!others.length) continue;
-
-      const ko = row.kickoff_utc ? new Date(row.kickoff_utc) : null;
-      const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
-      const locationAndTime = `${row.location || ""}${row.location && koTxt ? " • " : ""}${koTxt}`;
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${row.match_no}</td>
-        <td><span class="pill">${row.stage}</span></td>
-        <td>${row.home}</td>
-        <td>${row.away}</td>
-        <td>${locationAndTime}</td>
-        <td>${renderOthers(others)}</td>
-      `;
-      tbody.appendChild(tr);
-      rows += 1;
+    const predMap = new Map();
+    for (const p of predictions){
+      predMap.set(`${p.player_id}:${p.match_id}`, p);
     }
 
-    if (!rows) {
-      $("othersMsg").textContent = "Veel pole ühtegi lukus või lõppenud mängu, mille kohta teiste ennustusi näidata.";
+    const groupMatches = matches.filter(m => Number(m.match_no) <= 72);
+    const playoffMatches = matches.filter(m => Number(m.match_no) >= 73);
+
+    buildOthersMatrix(groupHead, groupBody, groupMatches, players, predMap);
+    buildOthersMatrix(playoffHead, playoffBody, playoffMatches, players, predMap);
+
+    if (!groupMatches.length && !playoffMatches.length){
+      $("othersMsg").textContent = "Kui mängud lõppevad, tekivad need siia mängu numbri järjekorras.";
     }
   }catch(e){
     setMsg($("othersMsg"), false, e.message);
+  }
+}
+
+function boardColorClass(points){
+  const p = Number(points ?? 0);
+  if (p >= 4) return "color-green";
+  if (p === 3) return "color-blue";
+  if (p === 2) return "color-yellow";
+  if (p === 1) return "color-orange";
+  return "color-red";
+}
+
+function buildOthersMatrix(thead, tbody, matches, players, predMap){
+  thead.innerHTML = "";
+  tbody.innerHTML = "";
+
+  if (!matches.length){
+    thead.innerHTML = `<tr><th class="sticky-col">Mänge veel pole</th></tr>`;
+    return;
+  }
+
+  const top1 = document.createElement("tr");
+  top1.innerHTML = `<th class="sticky-col">Mängu nr</th>` + matches.map(m => `<th colspan="2">${m.match_no}</th>`).join("");
+  thead.appendChild(top1);
+
+  const top2 = document.createElement("tr");
+  top2.innerHTML = `<th class="sticky-col">Alagrupp / etapp</th>` + matches.map(m => `<th colspan="2"><span class="pill">${m.stage}</span></th>`).join("");
+  thead.appendChild(top2);
+
+  const top3 = document.createElement("tr");
+  top3.innerHTML = `<th class="sticky-col">Asukoht ja aeg</th>` + matches.map(m => {
+    const ko = m.kickoff_utc ? new Date(m.kickoff_utc) : null;
+    const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
+    const loc = m.location || "";
+    return `<th colspan="2" class="match-top">${loc}${loc && koTxt ? " • " : ""}${koTxt}</th>`;
+  }).join("");
+  thead.appendChild(top3);
+
+  const top4 = document.createElement("tr");
+  top4.innerHTML = `<th class="sticky-col">Mäng</th>` + matches.map(m => `<th colspan="2" class="match-teams">${m.home} - ${m.away}</th>`).join("");
+  thead.appendChild(top4);
+
+  const correct = document.createElement("tr");
+  correct.className = "correct-row";
+  correct.innerHTML = `<th class="sticky-col">Õige tulemus</th>` + matches.map(m => {
+    const fh = m.final_home ?? "";
+    const fa = m.final_away ?? "";
+    return `<td>${fh}</td><td>${fa}</td>`;
+  }).join("");
+  tbody.appendChild(correct);
+
+  for (const player of players){
+    const tr = document.createElement("tr");
+    let rowHtml = `<th class="sticky-col">${player.display_name}</th>`;
+
+    for (const match of matches){
+      const pr = predMap.get(`${player.id}:${match.id}`);
+      if (!pr){
+        rowHtml += `<td></td><td></td>`;
+        continue;
+      }
+      const cls = boardColorClass(pr.points);
+      rowHtml += `<td class="${cls}">${pr.pred_home ?? ""}</td><td class="${cls}">${pr.pred_away ?? ""}</td>`;
+    }
+
+    tr.innerHTML = rowHtml;
+    tbody.appendChild(tr);
   }
 }
 

@@ -200,3 +200,11 @@ Valisin tasuta variandiks API-Footballi, sest nende free plan annab 100 päringu
 ### Kui andmebaas on juba olemas
 Käivita Supabase SQL Editoris fail:
 - `sql/api_football_result_sync_migration.sql`
+
+
+## Teiste ennustused
+- Alagrupimängud ja play-off on eraldi tabelites.
+- Tabel kasvab paremale ainult lõppenud mängudega.
+- Järjestus on mängu numbri järgi.
+- Esimene rida on "Õige tulemus".
+- Mängijate ennustused värvitakse sama punktisüsteemi loogika järgi nagu põhitabelis.
