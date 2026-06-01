@@ -693,6 +693,57 @@ if (event.httpMethod === "GET" && route === "predictions/public") {
 }
 
 
+
+// Matrix data for "Teiste ennustused" view
+if (event.httpMethod === "GET" && route === "predictions/matrix") {
+  const u = userFrom(event);
+  if (!u) return json(401, { error: "Pole sisse logitud." });
+
+  const playersRes = await sb
+    .from("players")
+    .select("id,display_name,created_at")
+    .order("created_at", { ascending: true });
+
+  if (playersRes.error) return json(500, { error: playersRes.error.message });
+
+  const matchesRes = await sb
+    .from("matches")
+    .select("id,match_no,stage,home,away,location,kickoff_utc,final_home,final_away,is_finished")
+    .order("match_no", { ascending: true });
+
+  if (matchesRes.error) return json(500, { error: matchesRes.error.message });
+
+  const finishedMatches = (matchesRes.data || []).filter(m =>
+    m.is_finished ||
+    (
+      m.final_home !== null &&
+      m.final_home !== undefined &&
+      m.final_away !== null &&
+      m.final_away !== undefined
+    )
+  );
+
+  const matchIds = finishedMatches.map(m => m.id);
+  let predictions = [];
+
+  if (matchIds.length) {
+    const predsRes = await sb
+      .from("predictions")
+      .select("match_id,player_id,pred_home,pred_away,points")
+      .in("match_id", matchIds);
+
+    if (predsRes.error) return json(500, { error: predsRes.error.message });
+    predictions = predsRes.data || [];
+  }
+
+  return json(200, {
+    ok: true,
+    players: playersRes.data || [],
+    matches: finishedMatches,
+    predictions
+  });
+}
+
     if (event.httpMethod === "POST" && route === "predictions") {
   const u = userFrom(event);
   if (!u) return json(401, { error: "Pole sisse logitud." });

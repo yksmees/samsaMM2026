@@ -208,3 +208,6 @@ Käivita Supabase SQL Editoris fail:
 - Järjestus on mängu numbri järgi.
 - Esimene rida on "Õige tulemus".
 - Mängijate ennustused värvitakse sama punktisüsteemi loogika järgi nagu põhitabelis.
+
+## predictions/matrix 404 parandus
+Selles paketis on `GET /api/predictions/matrix` endpoint server.js failis kindlalt olemas. Kui pärast deployd tuleb ikka 404, teeb Render tõenäoliselt vana commitit. Tee Renderis Manual Deploy → Deploy latest commit.

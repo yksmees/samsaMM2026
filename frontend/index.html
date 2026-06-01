@@ -375,7 +375,7 @@ async function loadMatchesAndPreds(){
     const [m, p, pub] = await Promise.all([
       call("matches",{method:"GET"}),
       token ? call("predictions",{method:"GET"}) : Promise.resolve({predictions:[]}),
-      token ? call("predictions/public",{method:"GET"}) : Promise.resolve({predictions_by_match:{}})
+      token ? call("predictions/matrix",{method:"GET"}) : Promise.resolve({predictions_by_match:{}})
     ]);
     const map = new Map((p.predictions||[]).map(x=>[x.match_id, x]));
     const publicMap = pub.predictions_by_match || {};
