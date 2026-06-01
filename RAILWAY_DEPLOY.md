@@ -131,3 +131,25 @@ Rakenduse loogikat ei ole Railway jaoks muudetud:
 - Supabase jääb samaks
 - API-Football sync jääb samaks
 - Teiste ennustused vaade jääb samaks
+
+
+## Kui Railway ütleb "Missing env var: SUPABASE_URL"
+
+Selles paketis on Supabase URL fallbackina server.js failis sees, sest URL ei ole salajane võti.
+
+Kontrollimiseks ava:
+`/api/debug/env`
+
+Vastus peab näitama:
+```json
+{
+  "supabase_url": "OK",
+  "supabase_key": "OK",
+  "jwt_secret": "OK"
+}
+```
+
+Kui `supabase_key` on `MISSING`, kontrolli Railway Variables all:
+- `SUPABASE_SERVICE_ROLE_KEY`
+või
+- `SUPABASE_SERVICE_ROLE`
