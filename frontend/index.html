@@ -186,12 +186,13 @@
 </div>
 
       <div id="admin" class="hide" style="margin-top:8px">
-        <div class="sub">Näed ainult adminina: mängijate lisamine, mängude laadimine, tulemuste ja algusaegade testimine.</div>
+        <div class="sub">Näed ainult adminina: mängijate lisamine, mängude laadimine, tulemuste ja algusaegade testimine. Tulemusi saab sünkroniseerida ka API-Football tasuta plaaniga ning käsitsi muutmine jääb alles.</div>
         <div id="adminMsg" class="msg"></div>
         <div class="row" style="margin-top:10px">
           <button id="btnHealth">API tervis</button>
           <button id="btnSeed" class="primary">Lae ametlik mängutabel</button>
           <button id="btnSync">Sünkroniseeri ajakava</button>
+          <button id="btnSyncResults">Sünkroniseeri tulemused</button>
         </div>
 
 
@@ -629,6 +630,19 @@ $("btnAddPlayer").onclick = async ()=>{
 };
 
 
+
+
+$("btnSyncResults").onclick = async ()=>{
+  if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
+  try{
+    const r = await call("admin/sync/results",{method:"POST"});
+    setMsg($("adminMsg"), true, `Tulemused sünkroniseeritud. Uuendatud mänge: ${r.updated}`);
+    await loadMatchesAndPreds();
+    await loadLeaderboard();
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+};
 
 $("btnSync").onclick = async ()=>{
   if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");

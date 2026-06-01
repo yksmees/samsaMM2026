@@ -22,6 +22,8 @@ create table if not exists public.matches (
   final_home int,
   final_away int,
   is_finished boolean not null default false,
+  manual_result_override boolean not null default false,
+  api_football_fixture_id bigint,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

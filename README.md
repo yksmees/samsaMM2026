@@ -184,3 +184,19 @@ See asendab vanad `GroupTeam...` read ametliku FIFA 2026 tabeli ridadega.
   - kollane = 2 punkti
   - oranž = 1 punkt
   - punane = 0 punkti
+
+
+## API-Football tasuta tulemuste sünkroniseerimine
+Valisin tasuta variandiks API-Footballi, sest nende free plan annab 100 päringut päevas, kõik endpointid on saadaval ning neil on eraldi FIFA World Cup 2026 juhend. World Cup 2026 jaoks kasutab API-Football `league=1` ja `season=2026`.
+
+### Lisa Render env
+- `API_FOOTBALL_KEY` = sinu tasuta API-Football võtme väärtus dashboardist
+
+### Kuidas töötab
+- mängutabeli laadimisel proovib server tulemusi automaatselt sünkroniseerida (maksimaalselt kord 30 minuti jooksul)
+- admin vaates on nupp **Sünkroniseeri tulemused**
+- admini käsitsi sisestatud tulemus märgitakse `manual_result_override=true` ja automaatika seda enam üle ei kirjuta
+
+### Kui andmebaas on juba olemas
+Käivita Supabase SQL Editoris fail:
+- `sql/api_football_result_sync_migration.sql`

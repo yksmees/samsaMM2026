@@ -79,3 +79,7 @@ Ava:
 
 Free plan võib pärast mitte kasutamist magama minna.
 Esimene avamine võib võtta 30 kuni 60 sekundit.
+
+
+Lisa Render env muutujana ka:
+- `API_FOOTBALL_KEY`

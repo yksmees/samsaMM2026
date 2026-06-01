@@ -75,6 +75,180 @@ function calcPoints(ph,pa,fh,fa){
   return exactHome + exactAway;
 }
 
+const API_FOOTBALL_BASE_URL = "https://v3.football.api-sports.io";
+const API_FOOTBALL_LEAGUE_ID = 1;
+const API_FOOTBALL_SEASON = 2026;
+const API_FOOTBALL_SYNC_COOLDOWN_MS = 30 * 60 * 1000;
+let lastApiFootballSyncAt = 0;
+
+function normalizeTeamName(name){
+  return String(name || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/côte d['’]ivoire/g, "ivory coast")
+    .replace(/korea republic/g, "south korea")
+    .replace(/turkiye/g, "türkiye")
+    .replace(/turkey/g, "türkiye")
+    .replace(/u\.s\./g, "united states")
+    .replace(/usa/g, "united states")
+    .replace(/dr congo/g, "congo dr")
+    .replace(/republic of ireland/g, "ireland")
+    .replace(/[^a-z0-9äöüõ\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isPlaceholderTeam(name){
+  const s = String(name || "").trim();
+  return /^[WL]\d+$/i.test(s) || /^[123][A-Z]+$/i.test(s) || /^[12][A-L]$/i.test(s) || /^3[A-Z]+$/i.test(s);
+}
+
+function apiFixtureFinished(fx){
+  const short = fx?.fixture?.status?.short || "";
+  return ["FT", "AET", "PEN", "AWD", "WO"].includes(short);
+}
+
+function scoreFixtureMatch(dbMatch, fx){
+  let score = 0;
+  const dbKick = dbMatch.kickoff_utc ? new Date(dbMatch.kickoff_utc).getTime() : null;
+  const fxKick = fx?.fixture?.date ? new Date(fx.fixture.date).getTime() : null;
+
+  if (dbKick && fxKick){
+    const diffMin = Math.abs(dbKick - fxKick) / 60000;
+    if (diffMin <= 5) score += 6;
+    else if (diffMin <= 30) score += 4;
+    else if (diffMin <= 120) score += 2;
+  }
+
+  const dbHome = normalizeTeamName(dbMatch.home);
+  const dbAway = normalizeTeamName(dbMatch.away);
+  const fxHome = normalizeTeamName(fx?.teams?.home?.name);
+  const fxAway = normalizeTeamName(fx?.teams?.away?.name);
+
+  if (!isPlaceholderTeam(dbMatch.home) && dbHome && dbHome === fxHome) score += 3;
+  if (!isPlaceholderTeam(dbMatch.away) && dbAway && dbAway === fxAway) score += 3;
+
+  const venue = normalizeTeamName(dbMatch.location);
+  const fxVenue = normalizeTeamName(fx?.fixture?.venue?.name);
+  if (venue && fxVenue && (venue.includes(fxVenue) || fxVenue.includes(venue))) score += 2;
+
+  const stage = normalizeTeamName(dbMatch.stage);
+  const round = normalizeTeamName(fx?.league?.round);
+  if (stage && round && (round.includes(stage) || stage.includes(round))) score += 1;
+
+  return score;
+}
+
+function chooseFixtureForMatch(dbMatch, fixtures){
+  if (dbMatch.api_football_fixture_id){
+    const exact = fixtures.find(fx => Number(fx?.fixture?.id) === Number(dbMatch.api_football_fixture_id));
+    if (exact) return exact;
+  }
+
+  let best = null;
+  let bestScore = -1;
+  for (const fx of fixtures){
+    const score = scoreFixtureMatch(dbMatch, fx);
+    if (score > bestScore){
+      best = fx;
+      bestScore = score;
+    }
+  }
+  return bestScore >= 4 ? best : null;
+}
+
+async function fetchApiFootballFixtures(){
+  const apiKey = process.env.API_FOOTBALL_KEY || "";
+  if (!apiKey) return { ok:false, error:"API_FOOTBALL_KEY puudu", fixtures:[] };
+
+  const resp = await fetch(`${API_FOOTBALL_BASE_URL}/fixtures?league=${API_FOOTBALL_LEAGUE_ID}&season=${API_FOOTBALL_SEASON}`, {
+    headers: {
+      "x-apisports-key": apiKey,
+      "Accept": "application/json"
+    }
+  });
+
+  if (!resp.ok){
+    const txt = await resp.text().catch(() => "");
+    return { ok:false, error:`API-Football viga ${resp.status}: ${txt.slice(0,200)}`, fixtures:[] };
+  }
+
+  const data = await resp.json();
+  return { ok:true, fixtures: Array.isArray(data?.response) ? data.response : [] };
+}
+
+async function recalcPointsForMatch(sb, matchId, fh, fa){
+  const preds = await sb.from("predictions").select("id,pred_home,pred_away").eq("match_id", matchId);
+  if (preds.error) return;
+  for (const p of preds.data || []){
+    const pts = calcPoints(p.pred_home, p.pred_away, fh, fa);
+    await sb.from("predictions").update({ points: pts }).eq("id", p.id);
+  }
+}
+
+async function syncApiFootballResults(sb, { force=false } = {}){
+  const now = Date.now();
+  if (!force && now - lastApiFootballSyncAt < API_FOOTBALL_SYNC_COOLDOWN_MS){
+    return { ok:true, skipped:true, updated:0, reason:"cooldown" };
+  }
+  lastApiFootballSyncAt = now;
+
+  const fetched = await fetchApiFootballFixtures();
+  if (!fetched.ok){
+    return { ok:false, updated:0, error:fetched.error || "API-Football päring ebaõnnestus" };
+  }
+
+  const fixtures = fetched.fixtures || [];
+  const matchesRes = await sb.from("matches").select("*").order("match_no", { ascending: true });
+  if (matchesRes.error){
+    return { ok:false, updated:0, error:matchesRes.error.message };
+  }
+
+  let updated = 0;
+  for (const match of matchesRes.data || []){
+    if (match.manual_result_override) continue;
+
+    const fx = chooseFixtureForMatch(match, fixtures);
+    if (!fx) continue;
+
+    const patch = {};
+    const fxId = Number(fx?.fixture?.id);
+    if (fxId && Number(match.api_football_fixture_id) !== fxId){
+      patch.api_football_fixture_id = fxId;
+    }
+
+    if (apiFixtureFinished(fx)){
+      const homeGoals = fx?.goals?.home;
+      const awayGoals = fx?.goals?.away;
+      if (homeGoals !== null && awayGoals !== null && homeGoals !== undefined && awayGoals !== undefined){
+        const changed =
+          match.final_home !== homeGoals ||
+          match.final_away !== awayGoals ||
+          !match.is_finished;
+
+        patch.final_home = homeGoals;
+        patch.final_away = awayGoals;
+        patch.is_finished = true;
+
+        if (Object.keys(patch).length){
+          const upd = await sb.from("matches").update(patch).eq("id", match.id).select("*").single();
+          if (!upd.error){
+            updated += 1;
+            if (changed){
+              await recalcPointsForMatch(sb, match.id, homeGoals, awayGoals);
+            }
+          }
+          continue;
+        }
+      }
+    } else if (Object.keys(patch).length){
+      await sb.from("matches").update(patch).eq("id", match.id);
+    }
+  }
+
+  return { ok:true, updated, fixtures: fixtures.length };
+}
+
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -218,9 +392,19 @@ if (event.httpMethod === "GET" && route === "me") {
 
     // Matches list
     if (event.httpMethod === "GET" && route === "matches") {
+      await syncApiFootballResults(sb, { force:false });
       const m = await sb.from("matches").select("*").order("match_no", { ascending: true });
       if (m.error) return json(500, { error: m.error.message });
       return json(200, { ok: true, matches: m.data });
+    }
+
+    // Admin sync results from API-Football
+    if (event.httpMethod === "POST" && route === "admin/sync/results") {
+      const u = userFrom(event);
+      if (!u || !u.is_admin) return json(403, { error: "Admini õigused puuduvad." });
+      const sync = await syncApiFootballResults(sb, { force:true });
+      if (!sync.ok) return json(500, { error: sync.error || "Tulemuste sünkroniseerimine ebaõnnestus." });
+      return json(200, { ok:true, updated: sync.updated || 0, fixtures: sync.fixtures || 0, skipped: !!sync.skipped, reason: sync.reason || "" });
     }
 
     // Admin seed matches (idempotent upsert by match_no)
@@ -390,6 +574,7 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
   if (body.kickoff_utc !== undefined) patch.kickoff_utc = body.kickoff_utc || null;
   if (body.final_home !== undefined) patch.final_home = body.final_home === null ? null : Number(body.final_home);
   if (body.final_away !== undefined) patch.final_away = body.final_away === null ? null : Number(body.final_away);
+  if (body.final_home !== undefined || body.final_away !== undefined) patch.manual_result_override = true;
   if (body.is_finished !== undefined) patch.is_finished = !!body.is_finished;
 
   const upd = await sb.from("matches").update(patch).eq("match_no", matchNo).select("*").single();
@@ -426,6 +611,7 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
       if (!u || !u.is_admin) return json(403, { error: "Admini õigused puuduvad." });
       const id = Number(mu[1]);
       const body = JSON.parse(event.body || "{}");
+      if (body.final_home !== undefined || body.final_away !== undefined) body.manual_result_override = true;
       const upd = await sb.from("matches").update(body).eq("id", id).select("*").single();
       if (upd.error) return json(500, { error: upd.error.message });
 
