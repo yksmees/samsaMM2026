@@ -349,7 +349,7 @@ function setWho(){
   if ($("headerUserBox")) $("headerUserBox").classList.toggle("hide", !me);
   if ($("loginCard")) $("loginCard").classList.toggle("hide", !!me);
   if ($("quickStartCard")) $("quickStartCard").classList.toggle("hide", !!me);
-  if ($("importTimesCard")) $("importTimesCard").classList.toggle("hide", !(me && me.is_admin));
+  if ($("importTimesCard")) $("importTimesCard").classList.add("hide");
 }
 
 function pointColorClass(row, pr){
@@ -433,6 +433,15 @@ async function loadAll(){
   await loadOthersView();
   await loadPlayers();
   toggleAdminTab();
+  const activeTab = document.querySelector(".tab.active")?.getAttribute("data-tab") || "pred";
+  updateImportTimesVisibility(activeTab);
+}
+
+
+function updateImportTimesVisibility(activeTab){
+  const card = $("importTimesCard");
+  if (!card) return;
+  card.classList.toggle("hide", !(me && me.is_admin && activeTab === "admin"));
 }
 
 function toggleAdminTab(){
@@ -440,6 +449,7 @@ function toggleAdminTab(){
   document.querySelector('[data-tab="admin"]').style.display = isA ? "" : "none";
   if (!isA){
     $("admin").classList.add("hide");
+    if ($("importTimesCard")) $("importTimesCard").classList.add("hide");
     if ($("account")) $("account").classList.add("hide");
     document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
     document.querySelector('[data-tab="pred"]').classList.add("active");
@@ -748,7 +758,7 @@ $("btnLogin").onclick = async ()=>{
     setMsg($("loginMsg"), true, `Sisse logitud: ${r.user.display_name}`);
     await loadAll();
   }catch(e){
-    setMsg($("accountMsg"), false, e.message);
+    setMsg($("loginMsg"), false, e.message);
   }
 };
 
@@ -978,6 +988,7 @@ document.querySelectorAll(".tab").forEach(t=>{
     const name = t.getAttribute("data-tab");
     ["pred","lb","others","account","admin"].forEach(id=>{ const el=$(id); if (el) el.classList.add("hide"); });
     const target = $(name); if (target) target.classList.remove("hide");
+    updateImportTimesVisibility(name);
   });
 });
 
