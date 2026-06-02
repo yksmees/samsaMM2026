@@ -166,3 +166,10 @@ Selles paketis on:
 Kui varem tuli error:
 `Node.js 20 detected without native WebSocket support`
 siis see pakett parandab selle.
+
+
+## Viimased UI muudatused
+- Edetabelis on positsiooni muutuse nooled, esimesel kohal kroon ja viimasel kohal konn.
+- Teiste ennustused vaates eemaldati Alagrupp / etapp ja Asukoht ja aeg read.
+- Teiste ennustused värvid arvutatakse nüüd mängu tegeliku lõpptulemuse ja kasutaja ennustuse järgi.
+- Õige tulemus rida on erksam ja bold.

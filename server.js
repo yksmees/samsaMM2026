@@ -845,26 +845,74 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
   return json(200, { ok: true, prediction: up.data });
 }
 
-    // Leaderboard
-    if (event.httpMethod === "GET" && route === "leaderboard") {
-      const res = await sb.rpc("leaderboard");
-      if (!res.error) return json(200, { ok: true, leaderboard: res.data });
 
-      const preds = await sb.from("predictions").select("player_id,points");
-      const players = await sb.from("players").select("id,display_name");
-      if (preds.error || players.error) return json(500, { error: (preds.error||players.error).message });
+// Leaderboard
+if (event.httpMethod === "GET" && route === "leaderboard") {
+  const players = await sb.from("players").select("id,display_name");
+  const preds = await sb.from("predictions").select("player_id,match_id,points");
+  const matches = await sb.from("matches").select("id,match_no,is_finished,final_home,final_away").order("match_no", { ascending: true });
 
-      const map = new Map();
-      for (const p of players.data) map.set(p.id, { player_id: p.id, display_name: p.display_name, points: 0 });
-      for (const pr of preds.data) {
-        const row = map.get(pr.player_id);
-        if (row) row.points += (pr.points || 0);
-      }
-      const lb = Array.from(map.values()).sort((a,b)=>b.points-a.points);
-      return json(200, { ok: true, leaderboard: lb });
+  if (players.error || preds.error || matches.error) {
+    return json(500, { error: (players.error || preds.error || matches.error).message });
+  }
+
+  const allPlayers = players.data || [];
+  const allPreds = preds.data || [];
+  const finishedMatches = (matches.data || []).filter(m =>
+    m.is_finished ||
+    (
+      m.final_home !== null &&
+      m.final_home !== undefined &&
+      m.final_away !== null &&
+      m.final_away !== undefined
+    )
+  ).sort((a,b)=>a.match_no-b.match_no);
+
+  const latestFinished = finishedMatches.length ? finishedMatches[finishedMatches.length - 1] : null;
+
+  function makeRows(excludeMatchId = null) {
+    const map = new Map();
+    for (const p of allPlayers) {
+      map.set(p.id, {
+        player_id: p.id,
+        display_name: p.display_name,
+        points: 0
+      });
     }
 
-    // Admin players CRUD
+    for (const pr of allPreds) {
+      if (excludeMatchId && pr.match_id === excludeMatchId) continue;
+      const row = map.get(pr.player_id);
+      if (row) row.points += (pr.points || 0);
+    }
+
+    return Array.from(map.values()).sort((a,b) => {
+      if ((b.points || 0) !== (a.points || 0)) return (b.points || 0) - (a.points || 0);
+      return String(a.display_name || "").localeCompare(String(b.display_name || ""), "et");
+    });
+  }
+
+  const current = makeRows(null);
+  const previous = latestFinished ? makeRows(latestFinished.id) : current;
+
+  const previousRank = new Map();
+  previous.forEach((row, index) => previousRank.set(row.player_id, index + 1));
+
+  const leaderboard = current.map((row, index) => {
+    const rank = index + 1;
+    const prev = previousRank.get(row.player_id) || rank;
+    return {
+      ...row,
+      rank,
+      previous_rank: prev,
+      movement: prev - rank
+    };
+  });
+
+  return json(200, { ok: true, leaderboard });
+}
+
+// Admin players CRUD
     if (event.httpMethod === "GET" && route === "admin/players") {
       const u = userFrom(event);
       if (!u || !u.is_admin) return json(403, { error: "Admini õigused puuduvad." });
