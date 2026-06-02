@@ -17,6 +17,7 @@
     .header-user{display:flex;gap:10px;align-items:center}
     .pred-cell{text-align:center}
     .pred-controls{display:inline-flex;gap:8px;align-items:center;justify-content:center}
+    .add-match-teams input{min-width:180px;flex:1}
     button.saved{background:linear-gradient(180deg,#2c8f5a,#1f6b43);border-color:rgba(66,211,146,.45)}
     .logo{width:220px;max-width:48vw;display:flex;align-items:center;justify-content:flex-start}
     .logo img{width:100%;height:auto;display:block;background:transparent}
@@ -278,6 +279,8 @@
   <strong>Lisa uus mäng</strong>
   <div class="row" style="margin-top:10px">
     <input id="amNo" class="small" placeholder="mängu #" />
+  </div>
+  <div class="row add-match-teams" style="margin-top:10px">
     <input id="amHome" placeholder="kodu" />
     <input id="amAway" placeholder="võõrsil" />
   </div>
@@ -293,6 +296,7 @@
   <strong>Kustuta mäng</strong>
   <div class="row" style="margin-top:10px">
     <select id="delMatchSelect"></select>
+    <button id="btnRefreshMatchDropdown" type="button">Uuenda nimekirja</button>
     <button id="btnDeleteMatch" type="button">Kustuta mäng</button>
   </div>
 </div>
@@ -455,6 +459,7 @@ async function loadMatchesAndPreds(){
     ]);
     const map = new Map((p.predictions||[]).map(x=>[x.match_id, x]));
     const publicMap = pub.predictions_by_match || {};
+    populateAdminMatchSelects(m.matches || []);
     for (const row of m.matches){
       const pr = map.get(row.id);
       const tr = document.createElement("tr");
@@ -875,6 +880,17 @@ $("btnSetKickoff").onclick = async ()=>{
 
 
 
+
+
+if ($("btnRefreshMatchDropdown")) $("btnRefreshMatchDropdown").onclick = async ()=>{
+  try{
+    const m = await call("matches",{method:"GET"});
+    populateAdminMatchSelects(m.matches || []);
+    setMsg($("adminMsg"), true, "Mängude nimekiri uuendatud.");
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+};
 
 $("btnDeleteMatch").onclick = async ()=>{
   if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
