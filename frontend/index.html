@@ -213,8 +213,21 @@
   </div>
 </div>
 
-      <div id="admin" class="hide" style="margin-top:8px"> class="hide" style="margin-top:8px">
+      <div id="admin" class="hide" style="margin-top:8px">
         <div class="sub">Näed ainult adminina: mängijate lisamine, mängude laadimine, tulemuste ja algusaegade testimine. Tulemusi saab sünkroniseerida ka API-Football tasuta plaaniga ning käsitsi muutmine jääb alles.</div>
+<div class="card" style="margin-top:10px">
+  <strong>Admin juhend</strong>
+  <div class="sub" style="margin-top:8px">
+    <b>API tervis</b> kontrollib, kas server vastab.<br>
+    <b>Lae ametlik mängutabel</b> uuendab FIFA 2026 mängud andmebaasis.<br>
+    <b>Sünkroniseeri ajakava</b> uuendab mänguaegu olemasoleva ajakava järgi.<br>
+    <b>Sünkroniseeri tulemused</b> tõmbab API-Footballist lõppenud mängude skoorid.<br>
+    <b>Käsitsi tulemus</b> sisesta mängu numbri järgi, et testida punktiarvestust.<br>
+    <b>Käsitsi mänguaeg</b> sisesta kuupäev kujul DD:MM:YY ja kellaaeg HH:MM Eesti aja järgi, et testida 1 tunni lukku.<br>
+    <b>Kustuta mäng</b> vali mäng dropdown-listist. See kustutab ka selle mängu ennustused.<br>
+    <b>Lisa uus mäng</b> sisesta mängu nr, meeskonnad, kuupäev DD:MM:YY, kellaaeg HH:MM ja asukoht. Etappi eraldi sisestama ei pea.
+  </div>
+</div>
         <div id="adminMsg" class="msg"></div>
         <div class="row" style="margin-top:10px">
           <button id="btnHealth">API tervis</button>
@@ -255,25 +268,34 @@
             </div>
             <div class="row" style="margin-top:10px">
               <input id="timeNo" class="small" placeholder="mängu #" />
-              <input id="timeDate" placeholder="kuupäev, nt 2026-06-11" />
-              <input id="timeClock" placeholder="Eesti aeg, nt 22:00" />
+              <input id="timeDate" placeholder="kuupäev DD:MM:YY" />
+              <input id="timeClock" placeholder="kellaaeg HH:MM" />
               <button id="btnSetKickoff" class="primary">Salvesta mänguaeg</button>
             </div>
           
+
 <div class="card">
   <strong>Lisa uus mäng</strong>
   <div class="row" style="margin-top:10px">
     <input id="amNo" class="small" placeholder="mängu #" />
-    <input id="amStage" placeholder="etapp" />
     <input id="amHome" placeholder="kodu" />
     <input id="amAway" placeholder="võõrsil" />
   </div>
   <div class="row" style="margin-top:10px">
-    <input id="amDate" placeholder="kuupäev YYYY-MM-DD" />
-    <input id="amTime" placeholder="Eesti aeg HH:MM" />
+    <input id="amDate" placeholder="kuupäev DD:MM:YY" />
+    <input id="amTime" placeholder="kellaaeg HH:MM" />
     <input id="amLocation" placeholder="asukoht" />
     <button id="btnAddMatch" class="primary">Lisa mäng</button>
   </div>
+</div>
+
+<div class="card">
+  <strong>Kustuta mäng</strong>
+  <div class="row" style="margin-top:10px">
+    <select id="delMatchSelect"></select>
+    <button id="btnDeleteMatch" type="button">Kustuta mäng</button>
+  </div>
+</div>
 </div>
 
 </div>
@@ -340,6 +362,50 @@ function renderOthers(preds){
   if (!preds || !preds.length) return "";
   const rows = preds.map(p => `<div>${p.display_name}: <span class="score-badge">${p.pred_home}:${p.pred_away}</span></div>`).join("");
   return `<div class="others"><strong>Teiste ennustused</strong><div class="others-list">${rows}</div></div>`;
+}
+
+function parseEeDateTime(dateText, timeText){
+  const d = String(dateText || "").trim();
+  const t = String(timeText || "").trim();
+
+  if (!/^\d{2}:\d{2}:\d{2}$/.test(d)) {
+    throw new Error("Kuupäev peab olema formaadis DD:MM:YY.");
+  }
+  if (!/^\d{2}:\d{2}$/.test(t)) {
+    throw new Error("Kellaaeg peab olema formaadis HH:MM.");
+  }
+
+  const [day, month, yearShort] = d.split(":").map(Number);
+  const [hour, minute] = t.split(":").map(Number);
+  const year = 2000 + yearShort;
+
+  if (
+    day < 1 || day > 31 ||
+    month < 1 || month > 12 ||
+    hour < 0 || hour > 23 ||
+    minute < 0 || minute > 59
+  ) {
+    throw new Error("Kuupäev või kellaaeg on vigane.");
+  }
+
+  // Eesti aeg juunis/juulis on UTC+3.
+  return new Date(Date.UTC(year, month - 1, day, hour - 3, minute, 0));
+}
+
+function formatMatchOption(m){
+  return `#${m.match_no} ${m.home} - ${m.away}`;
+}
+
+function populateAdminMatchSelects(matches){
+  const delSelect = $("delMatchSelect");
+  if (!delSelect) return;
+
+  const current = delSelect.value;
+  delSelect.innerHTML = `<option value="">Vali kustutatav mäng</option>` + (matches || [])
+    .map(m => `<option value="${m.id}">${formatMatchOption(m)}</option>`)
+    .join("");
+
+  if (current) delSelect.value = current;
 }
 
 async function refreshMe(){
@@ -788,19 +854,17 @@ $("btnImport").onclick = async ()=>{
 };
 
 
+
 $("btnSetKickoff").onclick = async ()=>{
   if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
   try{
     const matchNo = Number($("timeNo").value);
     const d = $("timeDate").value.trim();
     const t = $("timeClock").value.trim();
-    if (!matchNo || !/^\d{4}-\d{2}-\d{2}$/.test(d) || !/^\d{1,2}:\d{2}$/.test(t)) {
-      return setMsg($("adminMsg"), false, "Sisesta mängu #, kuupäev YYYY-MM-DD ja Eesti aeg HH:MM.");
-    }
-    const [Y,M,D] = d.split("-").map(Number);
-    const [hh,mm] = t.split(":").map(Number);
-    // Eesti aeg juunis/juulis 2026 on EEST ehk UTC+3
-    const utc = new Date(Date.UTC(Y, M-1, D, hh-3, mm, 0));
+
+    if (!matchNo) return setMsg($("adminMsg"), false, "Sisesta mängu #.");
+    const utc = parseEeDateTime(d, t);
+
     await call(`admin/matches/by-no/${matchNo}`,{method:"PUT", body: JSON.stringify({kickoff_utc: utc.toISOString()})});
     setMsg($("adminMsg"), true, "Mänguaeg salvestatud Eesti aja järgi.");
     await loadMatchesAndPreds();
@@ -810,30 +874,48 @@ $("btnSetKickoff").onclick = async ()=>{
 };
 
 
+
+
+$("btnDeleteMatch").onclick = async ()=>{
+  if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
+  try{
+    const id = $("delMatchSelect").value;
+    const label = $("delMatchSelect").selectedOptions[0]?.textContent || "valitud mäng";
+    if (!id) return setMsg($("adminMsg"), false, "Vali kustutatav mäng.");
+
+    if (!confirm(`Kas kustutan mängu: ${label}?\nSee kustutab ka selle mängu ennustused.`)) return;
+
+    await call(`admin/matches/${id}`, { method:"DELETE" });
+    setMsg($("adminMsg"), true, "Mäng kustutatud.");
+    await loadMatchesAndPreds();
+    await loadLeaderboard();
+    await loadOthersView();
+  }catch(e){
+    setMsg($("adminMsg"), false, e.message);
+  }
+};
+
 $("btnAddMatch").onclick = async ()=>{
   if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
   try{
     const match_no = Number($("amNo").value);
-    const stage = $("amStage").value.trim();
     const home = $("amHome").value.trim();
     const away = $("amAway").value.trim();
     const location = $("amLocation").value.trim();
     const d = $("amDate").value.trim();
     const t = $("amTime").value.trim();
 
-    if (!match_no || !stage || !home || !away || !/^\d{4}-\d{2}-\d{2}$/.test(d) || !/^\d{1,2}:\d{2}$/.test(t)) {
-      return setMsg($("adminMsg"), false, "Sisesta mängu #, etapp, meeskonnad, kuupäev YYYY-MM-DD ja Eesti aeg HH:MM.");
+    if (!match_no || !home || !away) {
+      return setMsg($("adminMsg"), false, "Sisesta mängu # ja meeskonnad.");
     }
 
-    const [Y,M,D] = d.split("-").map(Number);
-    const [hh,mm] = t.split(":").map(Number);
-    const utc = new Date(Date.UTC(Y, M-1, D, hh-3, mm, 0));
+    const utc = parseEeDateTime(d, t);
 
     await call("admin/matches", {
       method:"POST",
       body: JSON.stringify({
         match_no,
-        stage,
+        stage: "Lisatud mäng",
         home,
         away,
         location,
@@ -844,7 +926,6 @@ $("btnAddMatch").onclick = async ()=>{
 
     setMsg($("adminMsg"), true, "Mäng lisatud.");
     $("amNo").value="";
-    $("amStage").value="";
     $("amHome").value="";
     $("amAway").value="";
     $("amDate").value="";

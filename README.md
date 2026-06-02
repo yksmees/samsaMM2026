@@ -392,3 +392,11 @@ siis see pakett parandab selle.
 - Teiste ennustused vaates eemaldati Alagrupp / etapp ja Asukoht ja aeg read.
 - Teiste ennustused värvid arvutatakse nüüd mängu tegeliku lõpptulemuse ja kasutaja ennustuse järgi.
 - Õige tulemus rida on erksam ja bold.
+
+
+## Admin vaate muudatused
+- Lisatud mängu kustutamine dropdown-listist.
+- Kustutamisel eemaldatakse ka selle mängu ennustused.
+- Uue mängu lisamisel pole enam etapi välja. Etapiks pannakse automaatselt `Lisatud mäng`.
+- Admini kuupäevaväljad kasutavad formaati `DD:MM:YY` ja kellaaeg `HH:MM`.
+- Lisatud admin juhend.

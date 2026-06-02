@@ -623,6 +623,24 @@ if (event.httpMethod === "POST" && route === "admin/sync/schedule") {
 }
 
 
+
+// Admin: delete match by id and its predictions
+if (event.httpMethod === "DELETE" && route.startsWith("admin/matches/")) {
+  const u = userFrom(event);
+  if (!u || !u.is_admin) return json(403, { error: "Admini õigused puuduvad." });
+
+  const id = route.split("/").pop();
+  if (!id) return json(400, { error: "Mängu ID puudub." });
+
+  const delPreds = await sb.from("predictions").delete().eq("match_id", id);
+  if (delPreds.error) return json(500, { error: delPreds.error.message });
+
+  const delMatch = await sb.from("matches").delete().eq("id", id);
+  if (delMatch.error) return json(500, { error: delMatch.error.message });
+
+  return json(200, { ok: true });
+}
+
 // Admin: update match by match_no (used by manual result/time fields)
 if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
   const u = userFrom(event);
