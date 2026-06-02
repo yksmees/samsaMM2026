@@ -400,3 +400,11 @@ siis see pakett parandab selle.
 - Uue mängu lisamisel pole enam etapi välja. Etapiks pannakse automaatselt `Lisatud mäng`.
 - Admini kuupäevaväljad kasutavad formaati `DD:MM:YY` ja kellaaeg `HH:MM`.
 - Lisatud admin juhend.
+
+
+## Viimased kasutajate ja edetabeli muudatused
+- Login annab vale parooli korral selge teate.
+- Admin vaates mängija lisamisel kasutatakse ainult username välja, nimi eemaldatud.
+- Admin kasutajaid ei arvestata edetabelis ega teiste ennustuste vaates.
+- Edetabelis on koha numbrid.
+- Teiste ennustused vaates on kasutajad tähestiku järjekorras.

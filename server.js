@@ -376,10 +376,10 @@ async function netlifyHandler(event) {
       const q = await sb.from("players").select("id,username,display_name,password_hash,is_admin").eq("username", username).limit(1);
       if (q.error) return json(500, { error: q.error.message });
       const u = (q.data || [])[0];
-      if (!u) return json(401, { error: "Vale kasutaja või parool." });
+      if (!u) return json(401, { error: "Kasutajat ei leitud." });
 
       const ok = await bcrypt.compare(password, u.password_hash);
-      if (!ok) return json(401, { error: "Vale kasutaja või parool." });
+      if (!ok) return json(401, { error: "Vale parool." });
 
       const token = jwt.sign(
         { sub: u.id, username: u.username, display_name: u.display_name, is_admin: u.is_admin },
@@ -757,13 +757,14 @@ if (event.httpMethod === "GET" && route === "predictions/public") {
 
   if (predsRes.error) return json(500, { error: predsRes.error.message });
 
-  const playersRes = await sb.from("players").select("id,display_name");
+  const playersRes = await sb.from("players").select("id,display_name,is_admin");
   if (playersRes.error) return json(500, { error: playersRes.error.message });
 
-  const playerMap = new Map((playersRes.data || []).map(p => [p.id, p.display_name]));
+  const playerMap = new Map((playersRes.data || []).filter(p => !p.is_admin).map(p => [p.id, p.display_name]));
   const grouped = {};
   for (const p of predsRes.data || []) {
     if (p.player_id === u.sub) continue;
+    if (!playerMap.has(p.player_id)) continue;
     if (!grouped[p.match_id]) grouped[p.match_id] = [];
     grouped[p.match_id].push({
       player_id: p.player_id,
@@ -785,8 +786,8 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
 
   const playersRes = await sb
     .from("players")
-    .select("id,display_name,created_at")
-    .order("created_at", { ascending: true });
+    .select("id,display_name,is_admin,created_at")
+    .order("display_name", { ascending: true });
 
   if (playersRes.error) return json(500, { error: playersRes.error.message });
 
@@ -822,7 +823,7 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
 
   return json(200, {
     ok: true,
-    players: playersRes.data || [],
+    players: (playersRes.data || []).filter(p => !p.is_admin).sort((a,b) => String(a.display_name || "").localeCompare(String(b.display_name || ""), "et")),
     matches: finishedMatches,
     predictions
   });
@@ -866,7 +867,7 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
 
 // Leaderboard
 if (event.httpMethod === "GET" && route === "leaderboard") {
-  const players = await sb.from("players").select("id,display_name");
+  const players = await sb.from("players").select("id,display_name,is_admin");
   const preds = await sb.from("predictions").select("player_id,match_id,points");
   const matches = await sb.from("matches").select("id,match_no,is_finished,final_home,final_away").order("match_no", { ascending: true });
 
@@ -874,7 +875,7 @@ if (event.httpMethod === "GET" && route === "leaderboard") {
     return json(500, { error: (players.error || preds.error || matches.error).message });
   }
 
-  const allPlayers = players.data || [];
+  const allPlayers = (players.data || []).filter(p => !p.is_admin);
   const allPreds = preds.data || [];
   const finishedMatches = (matches.data || []).filter(m =>
     m.is_finished ||
@@ -944,10 +945,10 @@ if (event.httpMethod === "GET" && route === "leaderboard") {
       if (!u || !u.is_admin) return json(403, { error: "Admini õigused puuduvad." });
       const body = JSON.parse(event.body || "{}");
       const username = (body.username || "").toString().trim();
-      const display_name = (body.display_name || "").toString().trim();
+      const display_name = (body.display_name || username).toString().trim();
       const password = (body.password || "").toString();
       const is_admin = !!body.is_admin;
-      if (!username || !display_name || password.length < 6) return json(400, { error: "Puudub username, display_name või parool (min 6)." });
+      if (!username || password.length < 6) return json(400, { error: "Puudub username või parool (min 6)." });
       const password_hash = await bcrypt.hash(password, 10);
       const ins = await sb.from("players").insert({ username, display_name, password_hash, is_admin }).select("id,username,display_name,is_admin").single();
       if (ins.error) return json(500, { error: ins.error.message });

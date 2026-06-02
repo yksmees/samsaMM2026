@@ -168,7 +168,7 @@
         <div class="sub">Punktisumma kõigi mängude peale.</div>
         <div id="lbMsg" class="msg"></div>
         <table id="lbTable">
-          <thead><tr><th>Mängija</th><th class="right">Punktid</th></tr></thead>
+          <thead><tr><th>Koht</th><th>Mängija</th><th class="right">Punktid</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -243,7 +243,6 @@
             <strong>Mängijad</strong>
             <div class="row" style="margin-top:10px">
               <input id="pu2" placeholder="username" />
-              <input id="pn2" placeholder="nimi" />
               <input id="pp2" placeholder="parool (min 6)" type="password" />
               <select id="pa2">
                 <option value="false">tavaline</option>
@@ -252,7 +251,7 @@
               <button id="btnAddPlayer" class="primary">Lisa</button>
             </div>
             <table id="pTable">
-              <thead><tr><th>Nimi</th><th>Username</th><th>Admin</th><th class="right">Tegevus</th></tr></thead>
+              <thead><tr><th>Username</th><th>Admin</th><th class="right">Tegevus</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -305,7 +304,7 @@
 </div>
         </div>
 
-<div class="card">
+<div id="importTimesCard" class="card hide">
   <strong>Import ajad (FIFA ajakava)</strong>
   <div class="sub" style="margin-top:6px">
     FIFA ametlik graafik annab ajad Eastern Time järgi. Siia kleepi read kujul: match_no,YYYY-MM-DD,HH:MM (ET).
@@ -350,6 +349,7 @@ function setWho(){
   if ($("headerUserBox")) $("headerUserBox").classList.toggle("hide", !me);
   if ($("loginCard")) $("loginCard").classList.toggle("hide", !!me);
   if ($("quickStartCard")) $("quickStartCard").classList.toggle("hide", !!me);
+  if ($("importTimesCard")) $("importTimesCard").classList.toggle("hide", !(me && me.is_admin));
 }
 
 function pointColorClass(row, pr){
@@ -551,7 +551,7 @@ async function loadLeaderboard(){
       const crown = isFirst ? `<span class="rank-crown">👑</span>` : "";
       const frog = isLast ? `<span class="rank-frog">🐸</span>` : "";
 
-      tr.innerHTML = `<td>${row.display_name}${moveHtml}${crown}${frog}</td><td class="right">${row.points}</td>`;
+      tr.innerHTML = `<td>${idx + 1}.</td><td>${row.display_name}${moveHtml}${crown}${frog}</td><td class="right">${row.points}</td>`;
       tbody.appendChild(tr);
     });
   }catch(e){
@@ -581,7 +581,7 @@ async function loadOthersView(){
 
   try{
     const data = await call("predictions/matrix",{method:"GET"});
-    const players = data.players || [];
+    const players = (data.players || []).sort((a,b)=>String(a.display_name || "").localeCompare(String(b.display_name || ""), "et"));
     const matches = (data.matches || []).sort((a,b)=>a.match_no-b.match_no);
     const predictions = data.predictions || [];
 
@@ -682,7 +682,6 @@ async function loadPlayers(){
     for (const pl of r.players){
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${pl.display_name}</td>
         <td>${pl.username}</td>
         <td>${pl.is_admin ? "jah" : "ei"}</td>
         <td class="right">
@@ -796,10 +795,11 @@ $("btnPass").onclick = async ()=>{
 $("btnAddPlayer").onclick = async ()=>{
   if (!(me && me.is_admin)) return setMsg($("adminMsg"), false, "Ainult admin.");
   try{
-    const body = { username:$("pu2").value.trim(), display_name:$("pn2").value.trim(), password:$("pp2").value, is_admin: $("pa2").value==="true" };
+    const username = $("pu2").value.trim();
+    const body = { username, display_name: username, password:$("pp2").value, is_admin: $("pa2").value==="true" };
     await call("admin/players",{method:"POST", body: JSON.stringify(body)});
     setMsg($("adminMsg"), true, "Mängija lisatud.");
-    $("pu2").value=""; $("pn2").value=""; $("pp2").value="";
+    $("pu2").value=""; $("pp2").value="";
     await loadPlayers();
     await loadLeaderboard();
   }catch(e){
