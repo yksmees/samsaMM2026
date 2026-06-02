@@ -189,3 +189,9 @@ siis see pakett parandab selle.
 - Admin kasutajaid ei arvestata edetabelis ega teiste ennustuste vaates.
 - Edetabelis on koha numbrid.
 - Teiste ennustused vaates on kasutajad tähestiku järjekorras.
+
+
+## Admin screenshot vaade
+Admin vaates on eraldi plokk `Teiste ennustused screenshotiks`.
+See näitab ühte valitud lõppenud mängu, õiget tulemust ja mitte-admin kasutajate ennustusi tähestiku järjekorras.
+Vaikimisi valitakse uusim lõppenud mäng.

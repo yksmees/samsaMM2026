@@ -18,6 +18,20 @@
     .pred-cell{text-align:center}
     .pred-controls{display:inline-flex;gap:8px;align-items:center;justify-content:center}
     .add-match-teams input{min-width:180px;flex:1}
+    .screenshot-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+    .screenshot-board-wrap{overflow:auto;margin-top:12px}
+    .screenshot-board{border-collapse:separate;border-spacing:0;background:#fff;color:#000;min-width:320px;width:max-content;border:2px solid #000}
+    .screenshot-board th,.screenshot-board td{border-right:1px solid #000;border-bottom:1px solid #000;padding:5px 9px;text-align:center;font-weight:800;font-size:18px;line-height:1.05}
+    .screenshot-board th:first-child,.screenshot-board td:first-child{text-align:left;min-width:160px;background:#ecd7e2;color:#000}
+    .screenshot-board .meta th{background:#fff;color:#000;text-align:center;font-size:15px}
+    .screenshot-board .teams th{background:#fff;color:#000;font-size:16px}
+    .screenshot-board .correct th,.screenshot-board .correct td{background:#fff;color:#000;font-weight:900}
+    .screenshot-board .score-green{background:#00f000;color:#000}
+    .screenshot-board .score-blue{background:#4a8fe8;color:#000}
+    .screenshot-board .score-yellow{background:#ffff00;color:#000}
+    .screenshot-board .score-orange{background:#ff9900;color:#000}
+    .screenshot-board .score-red{background:#f00000;color:#000}
+
     button.saved{background:linear-gradient(180deg,#2c8f5a,#1f6b43);border-color:rgba(66,211,146,.45)}
     .logo{width:220px;max-width:48vw;display:flex;align-items:center;justify-content:flex-start}
     .logo img{width:100%;height:auto;display:block;background:transparent}
@@ -226,9 +240,28 @@
     <b>Käsitsi tulemus</b> sisesta mängu numbri järgi, et testida punktiarvestust.<br>
     <b>Käsitsi mänguaeg</b> sisesta kuupäev kujul DD:MM:YY ja kellaaeg HH:MM Eesti aja järgi, et testida 1 tunni lukku.<br>
     <b>Kustuta mäng</b> vali mäng dropdown-listist. See kustutab ka selle mängu ennustused.<br>
-    <b>Lisa uus mäng</b> sisesta mängu nr, meeskonnad, kuupäev DD:MM:YY, kellaaeg HH:MM ja asukoht. Etappi eraldi sisestama ei pea.
+    <b>Lisa uus mäng</b> sisesta mängu nr, meeskonnad, kuupäev DD:MM:YY, kellaaeg HH:MM ja asukoht. Etappi eraldi sisestama ei pea.<br>
+    <b>Import ajad (FIFA ajakava)</b> on admini abivahend, kuhu saab kleepida mitu mänguaega korraga kujul <code>mängu_nr,YYYY-MM-DD,HH:MM</code>. See uuendab olemasolevate mängude algusaegu massina, kui FIFA ajakavas on vaja kellaaegu korraga parandada.
   </div>
 </div>
+
+<div class="card" id="adminScreenshotCard" style="margin-top:10px">
+  <strong>Teiste ennustused screenshotiks</strong>
+  <div class="sub" style="margin-top:8px">
+    Vali lõppenud mäng. Tabel näitab õiget tulemust ja kõigi mitte-admin kasutajate ennustusi tähestiku järjekorras.
+  </div>
+  <div class="screenshot-tools">
+    <select id="screenshotMatchSelect"></select>
+    <button id="btnRefreshScreenshotBoard" type="button">Uuenda</button>
+  </div>
+  <div id="screenshotMsg" class="msg"></div>
+  <div class="screenshot-board-wrap">
+    <table id="screenshotBoard" class="screenshot-board">
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
         <div id="adminMsg" class="msg"></div>
         <div class="row" style="margin-top:10px">
           <button id="btnHealth">API tervis</button>
@@ -432,6 +465,7 @@ async function loadAll(){
   await loadLeaderboard();
   await loadOthersView();
   await loadPlayers();
+  await loadAdminScreenshotBoard();
   toggleAdminTab();
   const activeTab = document.querySelector(".tab.active")?.getAttribute("data-tab") || "pred";
   updateImportTimesVisibility(activeTab);
@@ -683,6 +717,122 @@ function buildOthersMatrix(thead, tbody, matches, players, predMap){
   }
 }
 
+
+let screenshotMatrixData = null;
+
+function shortTeamName(name){
+  const s = String(name || "").trim();
+  if (!s) return "";
+  if (s.length <= 12) return s;
+  return s.split(/\s+/).map(x => x[0]).join("").toUpperCase().slice(0, 4) || s.slice(0, 4).toUpperCase();
+}
+
+function formatShortDateTime(iso){
+  if (!iso) return "";
+  const d = new Date(iso);
+  const date = new Intl.DateTimeFormat('et-EE', { timeZone:'Europe/Tallinn', day:'2-digit', month:'short' }).format(d).replace(".", "");
+  const time = new Intl.DateTimeFormat('et-EE', { timeZone:'Europe/Tallinn', hour:'2-digit', minute:'2-digit' }).format(d);
+  return `${date} ${time}`;
+}
+
+function screenshotScoreClass(match, pr){
+  if (!match || !pr) return "";
+  const fh = Number(match.final_home);
+  const fa = Number(match.final_away);
+  const ph = Number(pr.pred_home);
+  const pa = Number(pr.pred_away);
+
+  if (![fh, fa, ph, pa].every(Number.isFinite)) return "score-red";
+  if (ph === fh && pa === fa) return "score-green";
+
+  const predictedOutcome = ph > pa ? 1 : ph < pa ? -1 : 0;
+  const finalOutcome = fh > fa ? 1 : fh < fa ? -1 : 0;
+
+  if (predictedOutcome === finalOutcome && ph === fh) return "score-blue";
+  if (predictedOutcome === finalOutcome) return "score-yellow";
+  if (pa === fa) return "score-orange";
+  return "score-red";
+}
+
+function populateScreenshotMatchSelect(matches){
+  const select = $("screenshotMatchSelect");
+  if (!select) return;
+
+  const previous = select.value;
+  const sorted = (matches || []).slice().sort((a,b)=>Number(b.match_no)-Number(a.match_no));
+  select.innerHTML = sorted.length
+    ? sorted.map(m => `<option value="${m.id}">#${m.match_no} ${m.home} - ${m.away}</option>`).join("")
+    : `<option value="">Lõppenud mänge pole</option>`;
+
+  if (previous && sorted.some(m => String(m.id) === previous)) {
+    select.value = previous;
+  }
+}
+
+function renderScreenshotBoard(){
+  const table = $("screenshotBoard");
+  const msg = $("screenshotMsg");
+  const select = $("screenshotMatchSelect");
+  if (!table || !select) return;
+
+  const tbody = table.querySelector("tbody");
+  tbody.innerHTML = "";
+  if (msg) msg.textContent = "";
+
+  const data = screenshotMatrixData;
+  if (!data || !(data.matches || []).length){
+    if (msg) msg.textContent = "Lõppenud mänge veel pole.";
+    return;
+  }
+
+  const matchId = select.value || String((data.matches || [])[0]?.id || "");
+  const match = (data.matches || []).find(m => String(m.id) === String(matchId));
+  if (!match){
+    if (msg) msg.textContent = "Vali mäng.";
+    return;
+  }
+
+  const players = (data.players || []).slice().sort((a,b)=>String(a.display_name || "").localeCompare(String(b.display_name || ""), "et"));
+  const predMap = new Map();
+  for (const p of data.predictions || []){
+    predMap.set(`${p.player_id}:${p.match_id}`, p);
+  }
+
+  const rows = [];
+  rows.push(`<tr class="meta"><th></th><th colspan="2">${match.match_no}</th></tr>`);
+  rows.push(`<tr class="meta"><th></th><th colspan="2">${formatShortDateTime(match.kickoff_utc)}</th></tr>`);
+  rows.push(`<tr class="teams"><th></th><th>${shortTeamName(match.home)}</th><th>${shortTeamName(match.away)}</th></tr>`);
+  rows.push(`<tr class="correct"><th>Õige tulemus</th><td>${match.final_home ?? ""}</td><td>${match.final_away ?? ""}</td></tr>`);
+
+  for (const player of players){
+    const pr = predMap.get(`${player.id}:${match.id}`);
+    if (!pr) {
+      rows.push(`<tr><th>${player.display_name}</th><td></td><td></td></tr>`);
+      continue;
+    }
+    const cls = screenshotScoreClass(match, pr);
+    rows.push(`<tr><th>${player.display_name}</th><td class="${cls}">${pr.pred_home ?? ""}</td><td class="${cls}">${pr.pred_away ?? ""}</td></tr>`);
+  }
+
+  tbody.innerHTML = rows.join("");
+}
+
+async function loadAdminScreenshotBoard(){
+  if (!(me && me.is_admin)) return;
+  const select = $("screenshotMatchSelect");
+  if (!select) return;
+
+  try{
+    screenshotMatrixData = await call("predictions/matrix", {method:"GET"});
+    const matches = (screenshotMatrixData.matches || []).sort((a,b)=>Number(b.match_no)-Number(a.match_no));
+    screenshotMatrixData.matches = matches;
+    populateScreenshotMatchSelect(matches);
+    renderScreenshotBoard();
+  }catch(e){
+    if ($("screenshotMsg")) setMsg($("screenshotMsg"), false, e.message);
+  }
+}
+
 async function loadPlayers(){
   const tbody = $("pTable").querySelector("tbody");
   tbody.innerHTML = "";
@@ -827,6 +977,7 @@ $("btnSyncResults").onclick = async ()=>{
     setMsg($("adminMsg"), true, `Tulemused sünkroniseeritud. Uuendatud mänge: ${r.updated}`);
     await loadMatchesAndPreds();
     await loadLeaderboard();
+    await loadAdminScreenshotBoard();
   }catch(e){
     setMsg($("adminMsg"), false, e.message);
   }
@@ -974,6 +1125,7 @@ $("btnSetFinal").onclick = async ()=>{
     setMsg($("adminMsg"), true, "Tulemus salvestatud.");
     await loadMatchesAndPreds();
     await loadLeaderboard();
+    await loadAdminScreenshotBoard();
   }catch(e){
     setMsg($("adminMsg"), false, e.message);
   }
@@ -991,6 +1143,10 @@ document.querySelectorAll(".tab").forEach(t=>{
     updateImportTimesVisibility(name);
   });
 });
+
+
+if ($("screenshotMatchSelect")) $("screenshotMatchSelect").addEventListener("change", renderScreenshotBoard);
+if ($("btnRefreshScreenshotBoard")) $("btnRefreshScreenshotBoard").onclick = loadAdminScreenshotBoard;
 
 loadAll();
 </script>
