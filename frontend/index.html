@@ -25,12 +25,14 @@
     .screenshot-board th:first-child,.screenshot-board td:first-child{text-align:left;min-width:160px;background:#ecd7e2;color:#000}
     .screenshot-board .meta th{background:#fff;color:#000;text-align:center;font-size:15px}
     .screenshot-board .teams th{background:#fff;color:#000;font-size:16px}
+    .screenshot-board .game-title{font-size:15px;white-space:nowrap}
+    .screenshot-board .team-cell{font-size:14px;white-space:nowrap}
     .screenshot-board .correct th,.screenshot-board .correct td{background:#fff;color:#000;font-weight:900}
-    .screenshot-board .score-green{background:#00f000;color:#000}
-    .screenshot-board .score-blue{background:#4a8fe8;color:#000}
-    .screenshot-board .score-yellow{background:#ffff00;color:#000}
-    .screenshot-board .score-orange{background:#ff9900;color:#000}
-    .screenshot-board .score-red{background:#f00000;color:#000}
+    .screenshot-board .score-green{background:#00f000 !important;color:#000 !important}
+    .screenshot-board .score-blue{background:#4a8fe8 !important;color:#000 !important}
+    .screenshot-board .score-yellow{background:#ffff00 !important;color:#000 !important}
+    .screenshot-board .score-orange{background:#ff9900 !important;color:#000 !important}
+    .screenshot-board .score-red{background:#f00000 !important;color:#000 !important}
 
     button.saved{background:linear-gradient(180deg,#2c8f5a,#1f6b43);border-color:rgba(66,211,146,.45)}
     .logo{width:220px;max-width:48vw;display:flex;align-items:center;justify-content:flex-start}
@@ -248,7 +250,7 @@
 <div class="card" id="adminScreenshotCard" style="margin-top:10px">
   <strong>Teiste ennustused screenshotiks</strong>
   <div class="sub" style="margin-top:8px">
-    Vali lõppenud mäng. Tabel näitab õiget tulemust ja kõigi mitte-admin kasutajate ennustusi tähestiku järjekorras.
+    Vali lõppenud mäng või märgi “mitu mängu kõrvuti”. Tabel näitab õiget tulemust ja kõigi mitte-admin kasutajate ennustusi tähestiku järjekorras.
   </div>
   <div class="screenshot-tools">
     <select id="screenshotMatchSelect"></select>
@@ -737,20 +739,30 @@ function formatShortDateTime(iso){
 
 function screenshotScoreClass(match, pr){
   if (!match || !pr) return "";
+
   const fh = Number(match.final_home);
   const fa = Number(match.final_away);
   const ph = Number(pr.pred_home);
   const pa = Number(pr.pred_away);
 
   if (![fh, fa, ph, pa].every(Number.isFinite)) return "score-red";
+
+  // Roheline: täpne skoor
   if (ph === fh && pa === fa) return "score-green";
 
   const predictedOutcome = ph > pa ? 1 : ph < pa ? -1 : 0;
   const finalOutcome = fh > fa ? 1 : fh < fa ? -1 : 0;
 
+  // Sinine: õige võitja + õige koduväravate arv
   if (predictedOutcome === finalOutcome && ph === fh) return "score-blue";
+
+  // Kollane: õige võitja või õige viik
   if (predictedOutcome === finalOutcome) return "score-yellow";
+
+  // Oranž: õige võõrsilväravate arv
   if (pa === fa) return "score-orange";
+
+  // Punane: kõik vale
   return "score-red";
 }
 
@@ -769,6 +781,7 @@ function populateScreenshotMatchSelect(matches){
   }
 }
 
+
 function renderScreenshotBoard(){
   const table = $("screenshotBoard");
   const msg = $("screenshotMsg");
@@ -785,17 +798,56 @@ function renderScreenshotBoard(){
     return;
   }
 
+  const multi = !!$("screenshotMulti")?.checked;
+  const players = (data.players || []).slice().sort((a,b)=>String(a.display_name || "").localeCompare(String(b.display_name || ""), "et"));
+  const predMap = new Map();
+  for (const p of data.predictions || []){
+    predMap.set(`${p.player_id}:${p.match_id}`, p);
+  }
+
+  if (multi) {
+    const count = Math.max(2, Math.min(12, Number($("screenshotCount")?.value || 3)));
+    const matches = (data.matches || [])
+      .slice()
+      .sort((a,b)=>Number(b.match_no)-Number(a.match_no))
+      .slice(0, count)
+      .sort((a,b)=>Number(a.match_no)-Number(b.match_no));
+
+    if (!matches.length){
+      if (msg) msg.textContent = "Lõppenud mänge veel pole.";
+      return;
+    }
+
+    const rows = [];
+    rows.push(`<tr class="meta"><th></th>${matches.map(m => `<th colspan="2" class="game-title">${m.match_no}</th>`).join("")}</tr>`);
+    rows.push(`<tr class="meta"><th></th>${matches.map(m => `<th colspan="2">${formatShortDateTime(m.kickoff_utc)}</th>`).join("")}</tr>`);
+    rows.push(`<tr class="teams"><th></th>${matches.map(m => `<th class="team-cell">${shortTeamName(m.home)}</th><th class="team-cell">${shortTeamName(m.away)}</th>`).join("")}</tr>`);
+    rows.push(`<tr class="correct"><th>Õige tulemus</th>${matches.map(m => `<td>${m.final_home ?? ""}</td><td>${m.final_away ?? ""}</td>`).join("")}</tr>`);
+
+    for (const player of players){
+      let row = `<tr><th>${player.display_name}</th>`;
+      for (const match of matches){
+        const pr = predMap.get(`${player.id}:${match.id}`);
+        if (!pr){
+          row += `<td></td><td></td>`;
+          continue;
+        }
+        const cls = screenshotScoreClass(match, pr);
+        row += `<td class="${cls}">${pr.pred_home ?? ""}</td><td class="${cls}">${pr.pred_away ?? ""}</td>`;
+      }
+      row += `</tr>`;
+      rows.push(row);
+    }
+
+    tbody.innerHTML = rows.join("");
+    return;
+  }
+
   const matchId = select.value || String((data.matches || [])[0]?.id || "");
   const match = (data.matches || []).find(m => String(m.id) === String(matchId));
   if (!match){
     if (msg) msg.textContent = "Vali mäng.";
     return;
-  }
-
-  const players = (data.players || []).slice().sort((a,b)=>String(a.display_name || "").localeCompare(String(b.display_name || ""), "et"));
-  const predMap = new Map();
-  for (const p of data.predictions || []){
-    predMap.set(`${p.player_id}:${p.match_id}`, p);
   }
 
   const rows = [];
@@ -1146,6 +1198,8 @@ document.querySelectorAll(".tab").forEach(t=>{
 
 
 if ($("screenshotMatchSelect")) $("screenshotMatchSelect").addEventListener("change", renderScreenshotBoard);
+if ($("screenshotMulti")) $("screenshotMulti").addEventListener("change", renderScreenshotBoard);
+if ($("screenshotCount")) $("screenshotCount").addEventListener("input", renderScreenshotBoard);
 if ($("btnRefreshScreenshotBoard")) $("btnRefreshScreenshotBoard").onclick = loadAdminScreenshotBoard;
 
 loadAll();

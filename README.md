@@ -414,3 +414,8 @@ siis see pakett parandab selle.
 Admin vaates on eraldi plokk `Teiste ennustused screenshotiks`.
 See näitab ühte valitud lõppenud mängu, õiget tulemust ja mitte-admin kasutajate ennustusi tähestiku järjekorras.
 Vaikimisi valitakse uusim lõppenud mäng.
+
+
+## Admin screenshot vaade mitme mänguga
+Admin screenshot plokis saab nüüd valida ühe mängu või märkida `mitu mängu kõrvuti`.
+Mitme mängu vaates kuvatakse valitud arv viimaseid lõppenud mänge kõrvuti, vanem vasakul ja uuem paremal.
