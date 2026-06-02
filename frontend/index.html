@@ -19,6 +19,8 @@
     .pred-controls{display:inline-flex;gap:8px;align-items:center;justify-content:center}
     .add-match-teams input{min-width:180px;flex:1}
     .screenshot-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+    .screenshot-tools label{font-weight:700;color:var(--text)}
+    .screenshot-tools select,.screenshot-tools input{min-height:38px}
     .screenshot-board-wrap{overflow:auto;margin-top:12px}
     .screenshot-board{border-collapse:separate;border-spacing:0;background:#fff;color:#000;min-width:320px;width:max-content;border:2px solid #000}
     .screenshot-board th,.screenshot-board td{border-right:1px solid #000;border-bottom:1px solid #000;padding:5px 9px;text-align:center;font-weight:800;font-size:18px;line-height:1.05}
@@ -253,10 +255,21 @@
     Vali lõppenud mäng või märgi “mitu mängu kõrvuti”. Tabel näitab õiget tulemust ja kõigi mitte-admin kasutajate ennustusi tähestiku järjekorras.
   </div>
   <div class="screenshot-tools">
-    <select id="screenshotMatchSelect"></select>
-    <button id="btnRefreshScreenshotBoard" type="button">Uuenda</button>
-  </div>
-  <div id="screenshotMsg" class="msg"></div>
+  <label>Vaade</label>
+  <select id="screenshotMode">
+    <option value="single">Üks mäng</option>
+    <option value="multi">Mitu mängu kõrvuti</option>
+  </select>
+
+  <label id="screenshotSingleLabel">Mäng</label>
+  <select id="screenshotMatchSelect"></select>
+
+  <label id="screenshotCountLabel">Mängude arv</label>
+  <input id="screenshotCount" class="small" type="number" min="2" max="12" value="3" />
+
+  <button id="btnRefreshScreenshotBoard" type="button">Uuenda</button>
+</div>
+<div id="screenshotMsg" class="msg"></div>
   <div class="screenshot-board-wrap">
     <table id="screenshotBoard" class="screenshot-board">
       <tbody></tbody>
@@ -782,7 +795,18 @@ function populateScreenshotMatchSelect(matches){
 }
 
 
+
+function updateScreenshotControls(){
+  const mode = $("screenshotMode")?.value || "single";
+  const isMulti = mode === "multi";
+  if ($("screenshotMatchSelect")) $("screenshotMatchSelect").classList.toggle("hide", isMulti);
+  if ($("screenshotSingleLabel")) $("screenshotSingleLabel").classList.toggle("hide", isMulti);
+    if ($("screenshotCountLabel")) $("screenshotCountLabel").classList.toggle("hide", !isMulti);
+}
+
 function renderScreenshotBoard(){
+  updateScreenshotControls();
+
   const table = $("screenshotBoard");
   const msg = $("screenshotMsg");
   const select = $("screenshotMatchSelect");
@@ -798,7 +822,8 @@ function renderScreenshotBoard(){
     return;
   }
 
-  const multi = !!$("screenshotMulti")?.checked;
+  const mode = $("screenshotMode")?.value || "single";
+  const multi = mode === "multi";
   const players = (data.players || []).slice().sort((a,b)=>String(a.display_name || "").localeCompare(String(b.display_name || ""), "et"));
   const predMap = new Map();
   for (const p of data.predictions || []){
@@ -879,6 +904,7 @@ async function loadAdminScreenshotBoard(){
     const matches = (screenshotMatrixData.matches || []).sort((a,b)=>Number(b.match_no)-Number(a.match_no));
     screenshotMatrixData.matches = matches;
     populateScreenshotMatchSelect(matches);
+    updateScreenshotControls();
     renderScreenshotBoard();
   }catch(e){
     if ($("screenshotMsg")) setMsg($("screenshotMsg"), false, e.message);
@@ -1198,7 +1224,7 @@ document.querySelectorAll(".tab").forEach(t=>{
 
 
 if ($("screenshotMatchSelect")) $("screenshotMatchSelect").addEventListener("change", renderScreenshotBoard);
-if ($("screenshotMulti")) $("screenshotMulti").addEventListener("change", renderScreenshotBoard);
+if ($("screenshotMode")) $("screenshotMode").addEventListener("change", renderScreenshotBoard);
 if ($("screenshotCount")) $("screenshotCount").addEventListener("input", renderScreenshotBoard);
 if ($("btnRefreshScreenshotBoard")) $("btnRefreshScreenshotBoard").onclick = loadAdminScreenshotBoard;
 
