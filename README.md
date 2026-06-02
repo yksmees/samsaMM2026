@@ -372,3 +372,16 @@ Kui `supabase_key` on `MISSING`, kontrolli Railway Variables all:
 - `SUPABASE_SERVICE_ROLE_KEY`
 või
 - `SUPABASE_SERVICE_ROLE`
+
+
+## Railway Node 20 WebSocket fix
+
+Railway kasutab Node 20 ning Supabase Realtime võib selles keskkonnas vajada `ws` paketti.
+Selles paketis on:
+- lisatud dependency `ws`
+- lisatud `import WebSocket from "ws"`
+- seadistatud Supabase `realtime.transport`
+
+Kui varem tuli error:
+`Node.js 20 detected without native WebSocket support`
+siis see pakett parandab selle.

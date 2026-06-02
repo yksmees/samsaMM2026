@@ -5,6 +5,12 @@ import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import WebSocket from "ws";
+// Railway kasutab Node 20. Supabase Realtime vajab selles keskkonnas ws transporti.
+if (!globalThis.WebSocket) {
+  globalThis.WebSocket = WebSocket;
+}
+
 
 const FALLBACK_SUPABASE_URL = "https://mfjsqqjpwemxdgdmxsxj.supabase.co";
 
@@ -81,7 +87,7 @@ function sbAdmin() {
     throw new Error("Missing env var: SUPABASE_SERVICE_ROLE_KEY");
   }
 
-  return createClient(url, key, { auth: { persistSession: false } });
+  return createClient(url, key, { auth: { persistSession: false }, realtime: { transport: WebSocket } });
 }
 
 function parseRoute(event) {
