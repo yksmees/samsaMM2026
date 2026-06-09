@@ -335,6 +335,49 @@
       .answer-grid input{width:100%}
     }
 
+
+    /* Mobile prediction card cleanup */
+    .mobile-only{display:none}
+    .mobile-card-view{display:none}
+    .muted-points{background:rgba(148,163,184,.18);color:#cbd5e1;border-color:rgba(148,163,184,.25)}
+    @media(max-width:720px){
+      .mobile-only{display:inline-flex;align-items:center;justify-content:center}
+      .compact-toggle{width:100%;margin-top:10px;padding:9px 10px;border-radius:12px;font-weight:850}
+      #mTable.prediction-table:not(.show-finished) tr.match-finished{display:none!important}
+      #mTable.prediction-table{display:block;width:100%;min-width:0;background:transparent;border:0}
+      #mTable.prediction-table thead{display:none}
+      #mTable.prediction-table tbody{display:block;width:100%}
+      #mTable.prediction-table tr{display:block;margin:8px 0;border:0;background:transparent;overflow:visible}
+      #mTable.prediction-table .desktop-pred-cell{display:none!important}
+      #mTable.prediction-table .mobile-card-view{display:block!important;width:100%;padding:0!important;border:0!important;background:transparent!important;box-sizing:border-box}
+      #mTable.prediction-table .mobile-card-view::before{display:none!important;content:none!important}
+      .prediction-table-wrap{overflow-x:visible;border:0;background:transparent;margin-top:8px}
+      .mobile-pred-card{border:1px solid rgba(148,163,184,.22);border-radius:14px;background:rgba(15,23,42,.74);padding:9px;box-shadow:0 8px 22px rgba(0,0,0,.16)}
+      #mTable.prediction-table tbody tr:nth-child(odd) .mobile-pred-card:not(.points-5):not(.points-4):not(.points-3):not(.points-2):not(.points-1):not(.points-0){background:rgba(15,23,42,.82);border-color:rgba(148,163,184,.28)}
+      #mTable.prediction-table tbody tr:nth-child(even) .mobile-pred-card:not(.points-5):not(.points-4):not(.points-3):not(.points-2):not(.points-1):not(.points-0){background:rgba(30,41,59,.66);border-color:rgba(148,163,184,.20)}
+      #mTable.prediction-table tbody tr:nth-child(odd) .mobile-pred-card{box-shadow:0 8px 22px rgba(0,0,0,.18)}
+      #mTable.prediction-table tbody tr:nth-child(even) .mobile-pred-card{box-shadow:0 8px 22px rgba(0,0,0,.11)}
+      .mobile-pred-card.points-5{background:rgba(187,247,208,.18);border-color:rgba(134,239,172,.55)}
+      .mobile-pred-card.points-4{background:rgba(22,101,52,.30);border-color:rgba(34,197,94,.55)}
+      .mobile-pred-card.points-3{background:rgba(29,78,216,.28);border-color:rgba(96,165,250,.55)}
+      .mobile-pred-card.points-2{background:rgba(250,204,21,.24);border-color:rgba(253,224,71,.55)}
+      .mobile-pred-card.points-1{background:rgba(249,115,22,.24);border-color:rgba(253,186,116,.55)}
+      .mobile-pred-card.points-0{background:rgba(153,27,27,.30);border-color:rgba(252,165,165,.55)}
+      .mobile-card-top{display:flex;justify-content:space-between;gap:8px;color:#cbd5e1;font-size:12px;font-weight:900;margin-bottom:7px}
+      .mobile-score-line{display:grid;grid-template-columns:minmax(0,1fr) 38px 38px minmax(0,1fr);gap:5px;align-items:center}
+      .mobile-score-line input.small{width:38px;min-width:38px;padding:7px 3px;text-align:center;font-size:16px;font-weight:900;border-radius:10px}
+      .mobile-team{font-size:13px;font-weight:950;color:#f8fafc;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .mobile-home{text-align:right}.mobile-away{text-align:left}
+      .mobile-score-line button{grid-column:1 / -1;width:100%;padding:8px 8px;margin-top:2px;font-weight:900}
+      .mobile-score-line .tie-adv-wrap{grid-column:1 / -1;margin-top:2px;padding:7px;border-radius:12px;background:rgba(15,23,42,.66)}
+      .mobile-score-line .adv-choice-list{grid-template-columns:1fr 1fr;gap:6px}
+      .mobile-score-line .adv-choice{justify-content:center;font-size:11px;padding:7px 6px}
+      .mobile-meta{font-size:12px;line-height:1.25;color:#e5e7eb;margin-top:5px;display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+      .mobile-meta strong{color:#cbd5e1;font-weight:950}
+      .mobile-pred-mini{color:#cbd5e1}
+      .prediction-panel{padding:9px}
+    }
+
   </style>
 </head>
 <body>
@@ -414,6 +457,7 @@
       <div id="pred" class="prediction-panel" style="margin-top:8px">
         <div class="sub">Sisesta oma ennustus. Ennustus lukustub 1 tund enne mängu algust. Punktid: 4 täpne skoor, 2 + õiged väravad kui tulemus on õige, 1 punkt iga õige väravate arvu eest ka vale tulemuse korral.</div>
         <div id="predMsg" class="msg"></div>
+        <button id="toggleFinishedMatches" type="button" class="mobile-only compact-toggle hide">Näita lõppenud mänge</button>
         <div class="prediction-table-wrap">
           <table id="mTable" class="prediction-table">
             <thead>
@@ -697,6 +741,7 @@ const api = (p)=>`/api/${p}`;
 let token = localStorage.getItem("token") || "";
 let me = null;
 let bonusData = null;
+let showFinishedMatchesMobile = false;
 let adminBonusData = null;
 
 const $ = (id)=>document.getElementById(id);
@@ -747,7 +792,25 @@ function pointsHelp(){
     <div class="points-help-row">${pointBadge(0)}<span>kõik vale</span></div>
   </div></div>`;
 }
-function pointColorClass(row, pr){ return ""; }
+function pointColorClass(row, pr){
+  if (!pr) return "";
+  const final = finalScoreText(row);
+  if (!(row?.is_finished || final)) return "";
+  const p = Math.max(0, Math.min(5, Number(pr.points || 0)));
+  return `points-${p}`;
+}
+function finalScoreText(row){
+  return (row && row.final_home !== null && row.final_home !== undefined && row.final_away !== null && row.final_away !== undefined) ? `${row.final_home}:${row.final_away}` : "";
+}
+function matchAdvancer(row){
+  if (!isPlayoff(row)) return "";
+  if (row.advancing_team) return row.advancing_team;
+  if (row.final_home !== null && row.final_home !== undefined && row.final_away !== null && row.final_away !== undefined){
+    const h = Number(row.final_home), a = Number(row.final_away);
+    if (Number.isFinite(h) && Number.isFinite(a) && h !== a) return h > a ? row.home : row.away;
+  }
+  return "";
+}
 function isPlayoff(row){ return Number(row?.match_no || 0) >= 73; }
 function predictionNeedsAdvancer(row, ph, pa){
   if (!isPlayoff(row)) return false;
@@ -917,72 +980,105 @@ async function loadMatchesAndPreds(){
     const map = new Map((p.predictions||[]).map(x=>[x.match_id, x]));
     const publicMap = pub.predictions_by_match || {};
     populateAdminMatchSelects(m.matches || []);
-    for (const row of m.matches){
+    const matches = m.matches || [];
+    const hasFinished = matches.some(row => !!(row.is_finished || finalScoreText(row)));
+    const toggleBtn = $("toggleFinishedMatches");
+    if (toggleBtn) {
+      toggleBtn.classList.toggle("hide", !hasFinished);
+      toggleBtn.textContent = showFinishedMatchesMobile ? "Peida lõppenud mänge" : "Näita lõppenud mänge";
+    }
+    $("mTable").classList.toggle("show-finished", showFinishedMatchesMobile);
+    for (const row of matches){
       const pr = map.get(row.id);
       const tr = document.createElement("tr");
-      const final = (row.final_home===null || row.final_away===null) ? "" : `${row.final_home}:${row.final_away}`;
+      const final = finalScoreText(row);
       const ko = row.kickoff_utc ? new Date(row.kickoff_utc) : null;
-const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
-const locked = !!(ko && (Date.now() >= (ko.getTime() - 60*60*1000)) && !(me && me.is_admin));
-const lockHint = locked ? "Lukus" : "";
-const finished = !!(row.is_finished || final);
-const colorClass = pointColorClass(row, pr);
-if (finished && colorClass) tr.className = `row-finished ${colorClass}`;
-const showAdvSelect = isPlayoff(row) && pr && Number(pr.pred_home) === Number(pr.pred_away);
-const currentAdv = pr?.advancing_team || "";
-const advSelect = isPlayoff(row) ? `<div class="tie-adv-wrap ${showAdvSelect ? "" : "hide"}" data-adv-wrap="${row.id}"><div class="tie-adv-label">Kui 90 min jääb viiki, vali edasipääseja</div><input type="hidden" data-mid="${row.id}" data-side="adv" value="${escapeHtml(currentAdv)}"><div class="adv-choice-list">
-  <label class="adv-choice ${locked ? "locked" : ""}"><input type="radio" name="adv_${row.id}" data-mid="${row.id}" data-adv-radio="${escapeHtml(row.home)}" ${currentAdv===row.home?"checked":""} ${locked ? "disabled" : ""}><span>✓ ${fifaCode(row.home)}</span></label>
-  <label class="adv-choice ${locked ? "locked" : ""}"><input type="radio" name="adv_${row.id}" data-mid="${row.id}" data-adv-radio="${escapeHtml(row.away)}" ${currentAdv===row.away?"checked":""} ${locked ? "disabled" : ""}><span>✓ ${fifaCode(row.away)}</span></label>
-</div></div>` : "";
-tr.innerHTML = `
-  <td>${row.match_no}</td>
-  <td><span class="pill">${row.stage}</span></td>
-  <td class="match-time">${koTxt}</td>
-  <td>${row.home}</td>
-  <td>${row.away}</td>
-  <td class="pred-cell">
-    <div class="pred-controls">
-      <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
-      <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" ${locked ? "disabled" : ""}>
-      ${advSelect}
-      <button type="button" class="${pr ? "saved" : ""}" data-save="${row.id}" ${locked ? "disabled" : ""}>${pr ? "Salvestatud" : "Salvesta"}</button>
-    </div>
-    ${pr ? `<div class="mini">${formatPrediction(row, pr)}</div>` : ""}
-  </td>
-  <td class="right">${pr?pointBadge(pr.points):pointBadge(0)}</td>
-`;
+      const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
+      const koFull = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
+      const locked = !!(ko && (Date.now() >= (ko.getTime() - 60*60*1000)) && !(me && me.is_admin));
+      const finished = !!(row.is_finished || final);
+      const colorClass = pointColorClass(row, pr);
+      tr.className = `${finished ? "match-finished" : ""} ${colorClass}`.trim();
+      const showAdvSelect = isPlayoff(row) && pr && Number(pr.pred_home) === Number(pr.pred_away);
+      const currentAdv = pr?.advancing_team || "";
+      const adv = matchAdvancer(row);
+      const saveText = pr ? "Salvestatud" : "Salvesta";
+      const advSelectDesktop = isPlayoff(row) ? `<div class="tie-adv-wrap ${showAdvSelect ? "" : "hide"}" data-adv-wrap="${row.id}"><div class="tie-adv-label">Kui 90 min jääb viiki, vali edasipääseja</div><input type="hidden" data-mid="${row.id}" data-side="adv" value="${escapeHtml(currentAdv)}"><div class="adv-choice-list">
+        <label class="adv-choice ${locked ? "locked" : ""}"><input type="radio" name="adv_d_${row.id}" data-mid="${row.id}" data-adv-radio="${escapeHtml(row.home)}" ${currentAdv===row.home?"checked":""} ${locked ? "disabled" : ""}><span>✓ ${fifaCode(row.home)}</span></label>
+        <label class="adv-choice ${locked ? "locked" : ""}"><input type="radio" name="adv_d_${row.id}" data-mid="${row.id}" data-adv-radio="${escapeHtml(row.away)}" ${currentAdv===row.away?"checked":""} ${locked ? "disabled" : ""}><span>✓ ${fifaCode(row.away)}</span></label>
+      </div></div>` : "";
+      const advSelectMobile = isPlayoff(row) ? `<div class="tie-adv-wrap ${showAdvSelect ? "" : "hide"}" data-adv-wrap="${row.id}"><div class="tie-adv-label">Kui 90 min jääb viiki, vali edasipääseja</div><input type="hidden" data-mid="${row.id}" data-side="adv" value="${escapeHtml(currentAdv)}"><div class="adv-choice-list">
+        <label class="adv-choice ${locked ? "locked" : ""}"><input type="radio" name="adv_m_${row.id}" data-mid="${row.id}" data-adv-radio="${escapeHtml(row.home)}" ${currentAdv===row.home?"checked":""} ${locked ? "disabled" : ""}><span>✓ ${fifaCode(row.home)}</span></label>
+        <label class="adv-choice ${locked ? "locked" : ""}"><input type="radio" name="adv_m_${row.id}" data-mid="${row.id}" data-adv-radio="${escapeHtml(row.away)}" ${currentAdv===row.away?"checked":""} ${locked ? "disabled" : ""}><span>✓ ${fifaCode(row.away)}</span></label>
+      </div></div>` : "";
+      const pointsHtml = pr ? pointBadge(pr.points) : `<span class="points-badge muted-points">-</span>`;
+      tr.innerHTML = `
+        <td class="mobile-card-view" colspan="7">
+          <div class="mobile-pred-card ${colorClass}">
+            <div class="mobile-card-top"><span>Mäng ${row.match_no}</span><span>${escapeHtml(row.stage || "")}</span></div>
+            <div class="mobile-score-line prediction-action-scope">
+              <span class="mobile-team mobile-home">${escapeHtml(row.home)}</span>
+              <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
+              <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
+              <span class="mobile-team mobile-away">${escapeHtml(row.away)}</span>
+              ${advSelectMobile}
+              <button type="button" class="${pr ? "saved" : ""}" data-save="${row.id}" ${locked ? "disabled" : ""}>${saveText}</button>
+            </div>
+            <div class="mobile-meta"><strong>Aeg:</strong> ${koFull || "-"}</div>
+            <div class="mobile-meta"><strong>Lõpp skoor:</strong> ${final || "-"}</div>
+            ${isPlayoff(row) ? `<div class="mobile-meta"><strong>Edasi:</strong> ${adv ? escapeHtml(adv) : "-"}</div>` : ""}
+            <div class="mobile-meta"><strong>Punktid:</strong> <span data-points-cell="${row.id}">${pointsHtml}</span></div>
+            ${pr ? `<div class="mobile-meta mobile-pred-mini"><strong>Sinu ennustus:</strong> ${formatPrediction(row, pr)}</div>` : ""}
+          </div>
+        </td>
+        <td class="desktop-pred-cell">${row.match_no}</td>
+        <td class="desktop-pred-cell"><span class="pill">${escapeHtml(row.stage || "")}</span></td>
+        <td class="desktop-pred-cell match-time">${koTxt}</td>
+        <td class="desktop-pred-cell">${escapeHtml(row.home)}</td>
+        <td class="desktop-pred-cell">${escapeHtml(row.away)}</td>
+        <td class="desktop-pred-cell pred-cell">
+          <div class="pred-controls prediction-action-scope">
+            <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
+            <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
+            ${advSelectDesktop}
+            <button type="button" class="${pr ? "saved" : ""}" data-save="${row.id}" ${locked ? "disabled" : ""}>${saveText}</button>
+          </div>
+          ${pr ? `<div class="mini">${formatPrediction(row, pr)}</div>` : ""}
+        </td>
+        <td class="desktop-pred-cell right" data-points-cell="${row.id}">${pointsHtml}</td>
+      `;
       tbody.appendChild(tr);
     }
     tbody.querySelectorAll("button[data-save]").forEach(btn=>{
       const mid = Number(btn.getAttribute("data-save"));
-      const hInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="h"]`);
-      const aInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="a"]`);
-      const advInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="adv"]`);
+      const scope = btn.closest(".prediction-action-scope") || btn.closest("tr") || tbody;
+      const hInput = scope.querySelector(`input[data-mid="${mid}"][data-side="h"]`);
+      const aInput = scope.querySelector(`input[data-mid="${mid}"][data-side="a"]`);
+      const advInput = scope.querySelector(`input[data-mid="${mid}"][data-side="adv"]`);
+      const matchRow = matches.find(x => Number(x.id) === mid);
 
-      const matchRow = (m.matches || []).find(x => Number(x.id) === mid);
       [hInput, aInput].forEach(inp=>{
         if (!inp) return;
         inp.addEventListener("input", ()=>{
           btn.classList.remove("saved");
           btn.textContent = "Salvesta";
-          if (matchRow) updateAdvancerVisibility(tbody, matchRow);
+          if (matchRow) updateAdvancerVisibility(scope, matchRow);
         });
       });
-      tbody.querySelectorAll(`input[data-mid="${mid}"][data-adv-radio]`).forEach(radio=>{
+      scope.querySelectorAll(`input[data-mid="${mid}"][data-adv-radio]`).forEach(radio=>{
         radio.addEventListener("change", ()=>{
           if (advInput) advInput.value = radio.getAttribute("data-adv-radio") || "";
           btn.classList.remove("saved");
           btn.textContent = "Salvesta";
         });
       });
-      if (matchRow) updateAdvancerVisibility(tbody, matchRow);
+      if (matchRow) updateAdvancerVisibility(scope, matchRow);
 
       btn.addEventListener("click", async (e)=>{
         e.preventDefault();
         if (!token) return setMsg($("predMsg"), false, "Logi sisse enne ennustamist.");
-        const rowEl = btn.closest("tr");
-        const h = hInput.value;
-        const a = aInput.value;
+        const h = hInput ? hInput.value : "";
+        const a = aInput ? aInput.value : "";
         const ph = Number(h), pa = Number(a);
         if (h === "" || a === "" || !Number.isFinite(ph) || !Number.isFinite(pa)) return setMsg($("predMsg"), false, "Sisesta numbrid.");
         if (matchRow && predictionNeedsAdvancer(matchRow, ph, pa) && (!advInput || !advInput.value)) {
@@ -993,8 +1089,8 @@ tr.innerHTML = `
           setMsg($("predMsg"), true, "Salvestatud.");
           btn.classList.add("saved");
           btn.textContent = "Salvestatud";
-          if (rowEl && rowEl.lastElementChild && resp && resp.prediction) {
-            rowEl.lastElementChild.innerHTML = pointBadge(resp.prediction.points ?? 0);
+          if (resp && resp.prediction) {
+            document.querySelectorAll(`[data-points-cell="${mid}"]`).forEach(cell => { cell.innerHTML = pointBadge(resp.prediction.points ?? 0); });
           }
           await loadLeaderboard();
           await loadOthersView();
@@ -1311,7 +1407,7 @@ async function loadBonus(){
       const input = q.answer_type === "text"
         ? `<input data-bonus="${q.id}" value="${escapeHtml(a?.answer_text || "")}" placeholder="Vastus" ${q.is_locked ? "disabled" : ""}>`
         : searchableInputHtml("bonus", q.id, opts, a?.answer_value || "", a?.answer_text || "", q.answer_type === "player" ? "Kirjuta nimi" : "Kirjuta ja vali", q.is_locked);
-      return `<div class="answer-grid"><div><strong>${escapeHtml(q.question_text)}</strong><div class="mini">Tüüp: ${escapeHtml(q.answer_type)}${q.is_locked ? " · lukus" : ""}</div></div><div>${input}</div></div>`;
+      return `<div class="answer-grid"><div><strong>${escapeHtml(q.question_text)}</strong>${q.is_locked ? `<div class="mini">Lukus</div>` : ""}</div><div>${input}</div></div>`;
     }).join("");
     box.innerHTML = rows + `<div class="row" style="margin-top:14px"><button id="btnSaveBonus" class="primary" type="button">Salvesta lisaküsimused</button></div>`;
     $("btnSaveBonus").onclick = saveBonusAnswers;
@@ -1740,6 +1836,7 @@ $("btnSetFinal").onclick = async ()=>{
 };
 
 $("btnReload").onclick = loadAll;
+if ($("toggleFinishedMatches")) $("toggleFinishedMatches").onclick = async ()=>{ showFinishedMatchesMobile = !showFinishedMatchesMobile; await loadMatchesAndPreds(); };
 
 document.querySelectorAll(".tab").forEach(t=>{
   t.addEventListener("click", ()=>{
