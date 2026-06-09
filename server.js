@@ -132,6 +132,52 @@ function actualAdvancer(match){
   if (fa > fh) return match.away;
   return null;
 }
+function fixtureWinnerSide(fx){
+  if (fx?.teams?.home?.winner === true) return "home";
+  if (fx?.teams?.away?.winner === true) return "away";
+
+  const goalsHome = fx?.goals?.home;
+  const goalsAway = fx?.goals?.away;
+  if (goalsHome !== null && goalsAway !== null && goalsHome !== undefined && goalsAway !== undefined && Number(goalsHome) !== Number(goalsAway)){
+    return Number(goalsHome) > Number(goalsAway) ? "home" : "away";
+  }
+
+  const extraHome = fx?.score?.extratime?.home;
+  const extraAway = fx?.score?.extratime?.away;
+  if (extraHome !== null && extraAway !== null && extraHome !== undefined && extraAway !== undefined && Number(extraHome) !== Number(extraAway)){
+    return Number(extraHome) > Number(extraAway) ? "home" : "away";
+  }
+
+  const penHome = fx?.score?.penalty?.home;
+  const penAway = fx?.score?.penalty?.away;
+  if (penHome !== null && penAway !== null && penHome !== undefined && penAway !== undefined && Number(penHome) !== Number(penAway)){
+    return Number(penHome) > Number(penAway) ? "home" : "away";
+  }
+
+  return null;
+}
+function fixtureAdvancingTeamForMatch(match, fx){
+  if (!isPlayoffMatch(match)) return null;
+  const side = fixtureWinnerSide(fx);
+  if (side === "home") return match.home;
+  if (side === "away") return match.away;
+  return null;
+}
+function validateAdvancingTeamForPrediction(match, ph, pa, chosenAdvancer){
+  if (!isPlayoffMatch(match)) return null;
+  if (Number(ph) !== Number(pa)) return null;
+  if (!chosenAdvancer) {
+    const err = new Error("Kui play-off mängu 90 minuti ennustus jääb viiki, vali edasipääseja.");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (chosenAdvancer !== match.home && chosenAdvancer !== match.away){
+    const err = new Error("Edasipääseja peab olema üks selle mängu kahest meeskonnast.");
+    err.statusCode = 400;
+    throw err;
+  }
+  return chosenAdvancer;
+}
 function baseScorePoints(ph,pa,fh,fa){
   if (fh===null || fa===null || fh===undefined || fa===undefined) return 0;
   if (ph===fh && pa===fa) return 4;
@@ -323,18 +369,22 @@ async function syncApiFootballResults(sb, { force=false } = {}){
       const homeGoals = fx?.score?.fulltime?.home ?? fx?.goals?.home;
       const awayGoals = fx?.score?.fulltime?.away ?? fx?.goals?.away;
       if (homeGoals !== null && awayGoals !== null && homeGoals !== undefined && awayGoals !== undefined){
-        const changed =
-          match.final_home !== homeGoals ||
-          match.final_away !== awayGoals ||
-          match.went_extra !== wentExtra ||
-          match.status_short !== statusShort ||
-          !match.is_finished;
+        const advancingTeam = fixtureAdvancingTeamForMatch(match, fx);
 
         patch.final_home = homeGoals;
         patch.final_away = awayGoals;
         patch.is_finished = true;
         patch.status_short = statusShort;
         patch.went_extra = wentExtra;
+        if (advancingTeam) patch.advancing_team = advancingTeam;
+
+        const changed =
+          match.final_home !== homeGoals ||
+          match.final_away !== awayGoals ||
+          match.went_extra !== wentExtra ||
+          match.status_short !== statusShort ||
+          (advancingTeam && match.advancing_team !== advancingTeam) ||
+          !match.is_finished;
 
         if (Object.keys(patch).length){
           const upd = await sb.from("matches").update(patch).eq("id", match.id).select("*").single();
@@ -902,6 +952,10 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
 
   if (m.error) return json(500, { error: m.error.message });
 
+  if (!Number.isInteger(pred_home) || !Number.isInteger(pred_away) || pred_home < 0 || pred_away < 0) {
+    return json(400, { error: "Sisesta korrektsed väravate arvud." });
+  }
+
   if (!u.is_admin && m.data.kickoff_utc) {
     const kickoff = new Date(m.data.kickoff_utc).getTime();
     const lockAt = kickoff - 60 * 60 * 1000;
@@ -911,10 +965,17 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
     }
   }
 
-  const points = calcPoints(pred_home, pred_away, m.data.final_home, m.data.final_away);
+  let cleanAdvancingTeam = null;
+  try {
+    cleanAdvancingTeam = validateAdvancingTeamForPrediction(m.data, pred_home, pred_away, advancing_team);
+  } catch (err) {
+    return json(err.statusCode || 400, { error: err.message || "Edasipääseja valik on vigane." });
+  }
+
+  const points = calcPoints(pred_home, pred_away, m.data.final_home, m.data.final_away, m.data, cleanAdvancingTeam);
 
   const up = await sb.from("predictions").upsert({
-    player_id: u.sub, match_id, pred_home, pred_away, points
+    player_id: u.sub, match_id, pred_home, pred_away, advancing_team: cleanAdvancingTeam, points
   }, { onConflict: "player_id,match_id" }).select("match_id,pred_home,pred_away,points,advancing_team").single();
 
   if (up.error) return json(500, { error: up.error.message });

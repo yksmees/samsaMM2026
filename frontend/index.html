@@ -179,6 +179,21 @@
       font-size:12px;
       padding:7px 6px;
     }
+    .prediction-table .tie-adv-wrap{
+      grid-column:1 / -1;
+      display:grid;
+      gap:4px;
+      min-width:0;
+    }
+    .prediction-table .tie-adv-wrap.hide{display:none}
+    .prediction-table .tie-adv-label{
+      white-space:normal;
+      line-height:1.15;
+      font-size:10px;
+      color:#bfdbfe;
+      font-weight:900;
+      text-align:left;
+    }
     .prediction-table .pred-controls button{
       grid-column:1 / -1;
       width:100%;
@@ -642,6 +657,21 @@ function pointBadge(points){
 }
 function pointColorClass(row, pr){ return ""; }
 function isPlayoff(row){ return Number(row?.match_no || 0) >= 73; }
+function predictionNeedsAdvancer(row, ph, pa){
+  if (!isPlayoff(row)) return false;
+  if (ph === "" || pa === "" || ph === null || pa === null || ph === undefined || pa === undefined) return false;
+  return Number.isFinite(Number(ph)) && Number.isFinite(Number(pa)) && Number(ph) === Number(pa);
+}
+function updateAdvancerVisibility(scope, row){
+  const hInput = scope.querySelector(`input[data-mid="${row.id}"][data-side="h"]`);
+  const aInput = scope.querySelector(`input[data-mid="${row.id}"][data-side="a"]`);
+  const wrap = scope.querySelector(`[data-adv-wrap="${row.id}"]`);
+  if (!wrap || !hInput || !aInput) return;
+  const needs = predictionNeedsAdvancer(row, hInput.value, aInput.value);
+  wrap.classList.toggle("hide", !needs);
+  const select = wrap.querySelector("select");
+  if (select && !needs) select.value = "";
+}
 function isTiePrediction(pr){ return pr && Number(pr.pred_home) === Number(pr.pred_away); }
 function fifaCode(name){
   const map = {
@@ -790,7 +820,8 @@ const lockHint = locked ? "Lukus" : "";
 const finished = !!(row.is_finished || final);
 const colorClass = pointColorClass(row, pr);
 if (finished && colorClass) tr.className = `row-finished ${colorClass}`;
-const advSelect = isPlayoff(row) ? `<select data-mid="${row.id}" data-side="adv" ${locked ? "disabled" : ""}><option value="">Edasipääseja viigi korral</option><option value="${escapeHtml(row.home)}" ${pr?.advancing_team===row.home?"selected":""}>${escapeHtml(row.home)}</option><option value="${escapeHtml(row.away)}" ${pr?.advancing_team===row.away?"selected":""}>${escapeHtml(row.away)}</option></select>` : "";
+const showAdvSelect = isPlayoff(row) && pr && Number(pr.pred_home) === Number(pr.pred_away);
+const advSelect = isPlayoff(row) ? `<div class="tie-adv-wrap ${showAdvSelect ? "" : "hide"}" data-adv-wrap="${row.id}"><div class="tie-adv-label">Kui 90 min jääb viiki, vali edasipääseja</div><select data-mid="${row.id}" data-side="adv" ${locked ? "disabled" : ""}><option value="">Vali edasipääseja</option><option value="${escapeHtml(row.home)}" ${pr?.advancing_team===row.home?"selected":""}>${escapeHtml(row.home)}</option><option value="${escapeHtml(row.away)}" ${pr?.advancing_team===row.away?"selected":""}>${escapeHtml(row.away)}</option></select></div>` : "";
 tr.innerHTML = `
   <td>${row.match_no}</td>
   <td><span class="pill">${row.stage}</span></td>
@@ -816,13 +847,16 @@ tr.innerHTML = `
       const aInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="a"]`);
       const advInput = tbody.querySelector(`select[data-mid="${mid}"][data-side="adv"]`);
 
+      const matchRow = (m.matches || []).find(x => Number(x.id) === mid);
       [hInput, aInput, advInput].forEach(inp=>{
         if (!inp) return;
         inp.addEventListener("input", ()=>{
           btn.classList.remove("saved");
           btn.textContent = "Salvesta";
+          if (matchRow) updateAdvancerVisibility(tbody, matchRow);
         });
       });
+      if (matchRow) updateAdvancerVisibility(tbody, matchRow);
 
       btn.addEventListener("click", async (e)=>{
         e.preventDefault();
@@ -831,7 +865,10 @@ tr.innerHTML = `
         const h = hInput.value;
         const a = aInput.value;
         const ph = Number(h), pa = Number(a);
-        if (!Number.isFinite(ph) || !Number.isFinite(pa)) return setMsg($("predMsg"), false, "Sisesta numbrid.");
+        if (h === "" || a === "" || !Number.isFinite(ph) || !Number.isFinite(pa)) return setMsg($("predMsg"), false, "Sisesta numbrid.");
+        if (matchRow && predictionNeedsAdvancer(matchRow, ph, pa) && (!advInput || !advInput.value)) {
+          return setMsg($("predMsg"), false, "Kui play-off mängu 90 minuti ennustus jääb viiki, vali edasipääseja.");
+        }
         try{
           const resp = await call("predictions",{method:"POST", body: JSON.stringify({match_id: mid, pred_home: ph, pred_away: pa, advancing_team: advInput ? advInput.value : null})});
           setMsg($("predMsg"), true, "Salvestatud.");
