@@ -866,13 +866,32 @@ function updateAdvancerVisibility(scope, row){
   if (!needs) wrap.querySelectorAll('input[data-adv-radio]').forEach(r => { r.checked = false; });
 }
 function isTiePrediction(pr){ return pr && Number(pr.pred_home) === Number(pr.pred_away); }
+function fifaCodeKey(name){
+  return String(name || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/cote d['’]?ivoire/g, "ivory coast")
+    .replace(/côte d['’]?ivoire/g, "ivory coast")
+    .replace(/cabo verde/g, "cape verde")
+    .replace(/korea republic/g, "south korea")
+    .replace(/u\.?s\.?a\.?/g, "united states")
+    .replace(/usa/g, "united states")
+    .replace(/turkiye/g, "turkey")
+    .replace(/türkiye/g, "turkey")
+    .replace(/ir iran/g, "iran")
+    .replace(/dr congo/g, "congo dr")
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 function fifaCode(name){
   const map = {
-    "Lithuania":"LTU","Latvia":"LVA","Estonia":"EST","Faroe Islands":"FRO","Germany":"GER","Portugal":"POR","Qatar":"QAT","Switzerland":"SUI","Haiti":"HAI","Scotland":"SCO",
-    "South Africa":"RSA","South Korea":"KOR","Czechia":"CZE","Bosnia and Herzegovina":"BIH","United States":"USA","Türkiye":"TUR","Turkey":"TUR","Ivory Coast":"CIV","Curacao":"CUW","Netherlands":"NED","Saudi Arabia":"KSA","New Zealand":"NZL","Cape Verde":"CPV","Congo DR":"COD","England":"ENG","Mexico":"MEX","Canada":"CAN","Brazil":"BRA","Morocco":"MAR","Australia":"AUS","Paraguay":"PAR","Ecuador":"ECU","Japan":"JPN","Sweden":"SWE","Tunisia":"TUN","Uruguay":"URU","Spain":"ESP","Belgium":"BEL","Iran":"IRN","Egypt":"EGY","France":"FRA","Senegal":"SEN","Iraq":"IRQ","Norway":"NOR","Argentina":"ARG","Algeria":"ALG","Austria":"AUT","Jordan":"JOR","Ghana":"GHA","Panama":"PAN","Uzbekistan":"UZB","Colombia":"COL","Croatia":"CRO"
+    "algeria":"ALG","argentina":"ARG","australia":"AUS","austria":"AUT","belgium":"BEL","bosnia and herzegovina":"BIH","brazil":"BRA","canada":"CAN","cape verde":"CPV","colombia":"COL","congo dr":"COD","croatia":"CRO","curacao":"CUW","czechia":"CZE","czech republic":"CZE","ecuador":"ECU","egypt":"EGY","england":"ENG","estonia":"EST","eesti":"EST","faroe islands":"FRO","france":"FRA","germany":"GER","saksamaa":"GER","ghana":"GHA","haiti":"HAI","iran":"IRN","iraq":"IRQ","ivory coast":"CIV","japan":"JPN","jordan":"JOR","latvia":"LVA","lithuania":"LTU","mexico":"MEX","morocco":"MAR","netherlands":"NED","new zealand":"NZL","norway":"NOR","panama":"PAN","paraguay":"PAR","portugal":"POR","qatar":"QAT","saudi arabia":"KSA","scotland":"SCO","senegal":"SEN","south africa":"RSA","south korea":"KOR","spain":"ESP","sweden":"SWE","switzerland":"SUI","tunisia":"TUN","turkey":"TUR","uruguay":"URU","united states":"USA","uzbekistan":"UZB"
   };
-  const s = String(name || "").trim();
-  return map[s] || s.replace(/[^A-Za-z]/g, "").slice(0,3).toUpperCase();
+  const raw = String(name || "").trim();
+  const key = fifaCodeKey(raw);
+  return map[key] || raw.replace(/[^A-Za-z]/g, "").slice(0,3).toUpperCase();
 }
 function formatPrediction(match, pr){
   if (!pr) return "";

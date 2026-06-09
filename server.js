@@ -1578,25 +1578,32 @@ function apiFixtureFinished(fx){
   return ["FT", "AET", "PEN", "AWD", "WO"].includes(short);
 }
 
-function scoreFixtureMatch(dbMatch, fx){
-  let score = 0;
+function fixtureKickoffDiffMinutes(dbMatch, fx){
   const dbKick = dbMatch.kickoff_utc ? new Date(dbMatch.kickoff_utc).getTime() : null;
   const fxKick = fx?.fixture?.date ? new Date(fx.fixture.date).getTime() : null;
+  if (!dbKick || !fxKick) return null;
+  return Math.abs(dbKick - fxKick) / 60000;
+}
 
-  if (dbKick && fxKick){
-    const diffMin = Math.abs(dbKick - fxKick) / 60000;
+function fixtureTeamsMatch(dbMatch, fx){
+  const dbHome = normalizeTeamName(dbMatch.home);
+  const dbAway = normalizeTeamName(dbMatch.away);
+  const fxHome = normalizeTeamName(fx?.teams?.home?.name);
+  const fxAway = normalizeTeamName(fx?.teams?.away?.name);
+  return !!dbHome && !!dbAway && dbHome === fxHome && dbAway === fxAway;
+}
+
+function scoreFixtureMatch(dbMatch, fx){
+  let score = 0;
+  const diffMin = fixtureKickoffDiffMinutes(dbMatch, fx);
+
+  if (diffMin !== null){
     if (diffMin <= 5) score += 6;
     else if (diffMin <= 30) score += 4;
     else if (diffMin <= 120) score += 2;
   }
 
-  const dbHome = normalizeTeamName(dbMatch.home);
-  const dbAway = normalizeTeamName(dbMatch.away);
-  const fxHome = normalizeTeamName(fx?.teams?.home?.name);
-  const fxAway = normalizeTeamName(fx?.teams?.away?.name);
-
-  if (!isPlaceholderTeam(dbMatch.home) && dbHome && dbHome === fxHome) score += 3;
-  if (!isPlaceholderTeam(dbMatch.away) && dbAway && dbAway === fxAway) score += 3;
+  if (fixtureTeamsMatch(dbMatch, fx)) score += 10;
 
   const venue = normalizeTeamName(dbMatch.location);
   const fxVenue = normalizeTeamName(fx?.fixture?.venue?.name);
@@ -1611,20 +1618,30 @@ function scoreFixtureMatch(dbMatch, fx){
 
 function chooseFixtureForMatch(dbMatch, fixtures){
   if (dbMatch.api_football_fixture_id){
-    const exact = fixtures.find(fx => Number(fx?.fixture?.id) === Number(dbMatch.api_football_fixture_id));
-    if (exact) return exact;
+    // Kui fixture id on juba Samsungi mängu külge salvestatud, ei tohi seda enam
+    // tiimi/aja järgi ümber siduda. Kui API vastuses seda fixture'it pole, jätame mängu vahele.
+    return fixtures.find(fx => Number(fx?.fixture?.id) === Number(dbMatch.api_football_fixture_id)) || null;
   }
 
-  let best = null;
-  let bestScore = -1;
+  if (isPlaceholderTeam(dbMatch.home) || isPlaceholderTeam(dbMatch.away)) return null;
+
+  const candidates = [];
   for (const fx of fixtures){
-    const score = scoreFixtureMatch(dbMatch, fx);
-    if (score > bestScore){
-      best = fx;
-      bestScore = score;
-    }
+    if (!fixtureTeamsMatch(dbMatch, fx)) continue;
+    const diffMin = fixtureKickoffDiffMinutes(dbMatch, fx);
+    if (diffMin === null || diffMin > 120) continue;
+    candidates.push({ fx, score: scoreFixtureMatch(dbMatch, fx), diffMin });
   }
-  return bestScore >= 4 ? best : null;
+  if (!candidates.length) return null;
+
+  candidates.sort((a, b) => b.score - a.score || a.diffMin - b.diffMin);
+  const best = candidates[0];
+  const second = candidates[1];
+
+  // Ebakindla duplikaadi korral ära kirjuta tulemust Samsungi mängu peale.
+  if (second && second.score === best.score && Math.abs(second.diffMin - best.diffMin) <= 5) return null;
+
+  return best.fx;
 }
 
 async function fetchApiFootballFixtures(){
