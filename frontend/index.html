@@ -336,11 +336,35 @@
     }
 
 
+    /* Desktop prediction rows: alternating cards and compact score line */
+    @media(min-width:721px){
+      #mTable.prediction-table tbody tr:nth-child(odd) .desktop-pred-cell{background:rgba(15,23,42,.64)}
+      #mTable.prediction-table tbody tr:nth-child(even) .desktop-pred-cell{background:rgba(30,41,59,.48)}
+      #mTable.prediction-table tbody tr:hover .desktop-pred-cell{background:rgba(51,65,85,.55)}
+      #mTable.prediction-table .desktop-no{width:44px;text-align:center;white-space:nowrap}
+      #mTable.prediction-table .desktop-stage{width:74px;text-align:center;white-space:nowrap}
+      #mTable.prediction-table .desktop-time{width:104px;text-align:center;white-space:nowrap}
+      #mTable.prediction-table .desktop-pred{width:360px;min-width:320px;max-width:420px;text-align:center}
+      #mTable.prediction-table .desktop-points{width:70px;text-align:center;white-space:nowrap}
+      .desktop-score-line{display:grid;grid-template-columns:minmax(88px,1fr) 36px 36px minmax(88px,1fr);gap:6px;align-items:center;width:100%}
+      .desktop-score-line .desktop-team{font-weight:950;color:#f8fafc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:1.15}
+      .desktop-score-line .desktop-home{text-align:right}
+      .desktop-score-line .desktop-away{text-align:left}
+      .desktop-score-line input.small{width:36px;min-width:36px;padding:6px 3px;text-align:center;font-weight:900}
+      #mTable.prediction-table .pred-controls{display:grid;grid-template-columns:1fr;gap:6px;justify-items:center;width:100%}
+      #mTable.prediction-table .pred-controls button{width:128px;max-width:100%;padding:7px 8px}
+      #mTable.prediction-table .tie-adv-wrap{width:100%;max-width:320px;margin:0 auto}
+      #mTable.prediction-table .adv-choice-list{grid-template-columns:1fr 1fr}
+      .desktop-result-mini{margin-top:5px;text-align:center;color:#cbd5e1;font-size:12px;font-weight:850}
+      .desktop-result-mini strong{color:#f8fafc}
+    }
+
+
     /* Mobile prediction card cleanup */
     .mobile-only{display:none}
     .mobile-card-view{display:none}
     .muted-points{background:rgba(148,163,184,.18);color:#cbd5e1;border-color:rgba(148,163,184,.25)}
-    @media(max-width:720px){
+    @media(max-width:760px){
       .mobile-only{display:inline-flex;align-items:center;justify-content:center}
       .compact-toggle{width:100%;margin-top:10px;padding:9px 10px;border-radius:12px;font-weight:850}
       #mTable.prediction-table:not(.show-finished) tr.match-finished{display:none!important}
@@ -462,7 +486,7 @@
           <table id="mTable" class="prediction-table">
             <thead>
               <tr>
-                <th>Nr</th><th>Etapp</th><th>Kellaaeg</th><th>Kodu</th><th>Võõrsil</th><th class="right">Sinu ennustus</th><th class="right">Punktid</th>
+                <th>Nr</th><th>Etapp</th><th>Kellaaeg</th><th class="right">Sinu ennustus</th><th class="right">Punktid</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -859,11 +883,20 @@ function searchableInputHtml(kind, id, options, currentValue="", currentText="",
   const text = currentText || ((options || []).find(o => String(o.value) === String(currentValue))?.label || currentValue || "");
   return `<input class="search-choice" list="${listId}" data-${kind}="${id}" value="${escapeHtml(text)}" placeholder="${escapeHtml(placeholder)}" ${disabled ? "disabled" : ""}><datalist id="${listId}">${dataListOptions(options)}</datalist>`;
 }
+function normalizeChoiceText(v){
+  return String(v || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 function resolveChoice(options, typed){
   const raw = String(typed || "").trim();
   if (!raw) return { value:"", text:"" };
-  const exact = (options || []).find(o => String(o.label).toLowerCase() === raw.toLowerCase() || String(o.value).toLowerCase() === raw.toLowerCase());
+  const norm = normalizeChoiceText(raw);
+  const list = options || [];
+  const exact = list.find(o => normalizeChoiceText(o.label) === norm || normalizeChoiceText(o.value) === norm);
   if (exact) return { value:String(exact.value), text:String(exact.label) };
+  const starts = list.filter(o => normalizeChoiceText(o.label).startsWith(norm) || normalizeChoiceText(o.value).startsWith(norm));
+  if (starts.length === 1) return { value:String(starts[0].value), text:String(starts[0].label) };
+  const contains = list.filter(o => normalizeChoiceText(o.label).includes(norm) || normalizeChoiceText(o.value).includes(norm));
+  if (contains.length === 1) return { value:String(contains[0].value), text:String(contains[0].label) };
   return null;
 }
 function escapeHtml(v){ return String(v ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch] || ch)); }
@@ -1013,7 +1046,7 @@ async function loadMatchesAndPreds(){
       </div></div>` : "";
       const pointsHtml = pr ? pointBadge(pr.points) : `<span class="points-badge muted-points">-</span>`;
       tr.innerHTML = `
-        <td class="mobile-card-view" colspan="7">
+        <td class="mobile-card-view" colspan="5">
           <div class="mobile-pred-card ${colorClass}">
             <div class="mobile-card-top"><span>Mäng ${row.match_no}</span><span>${escapeHtml(row.stage || "")}</span></div>
             <div class="mobile-score-line prediction-action-scope">
@@ -1028,24 +1061,25 @@ async function loadMatchesAndPreds(){
             <div class="mobile-meta"><strong>Lõpp skoor:</strong> ${final || "-"}</div>
             ${isPlayoff(row) ? `<div class="mobile-meta"><strong>Edasi:</strong> ${adv ? escapeHtml(adv) : "-"}</div>` : ""}
             <div class="mobile-meta"><strong>Punktid:</strong> <span data-points-cell="${row.id}">${pointsHtml}</span></div>
-            ${pr ? `<div class="mobile-meta mobile-pred-mini"><strong>Sinu ennustus:</strong> ${formatPrediction(row, pr)}</div>` : ""}
           </div>
         </td>
-        <td class="desktop-pred-cell">${row.match_no}</td>
-        <td class="desktop-pred-cell"><span class="pill">${escapeHtml(row.stage || "")}</span></td>
-        <td class="desktop-pred-cell match-time">${koTxt}</td>
-        <td class="desktop-pred-cell">${escapeHtml(row.home)}</td>
-        <td class="desktop-pred-cell">${escapeHtml(row.away)}</td>
-        <td class="desktop-pred-cell pred-cell">
+        <td class="desktop-pred-cell desktop-no">${row.match_no}</td>
+        <td class="desktop-pred-cell desktop-stage"><span class="pill">${escapeHtml(row.stage || "")}</span></td>
+        <td class="desktop-pred-cell desktop-time match-time">${koTxt}</td>
+        <td class="desktop-pred-cell desktop-pred pred-cell">
           <div class="pred-controls prediction-action-scope">
-            <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
-            <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
+            <div class="desktop-score-line">
+              <span class="desktop-team desktop-home">${escapeHtml(row.home)}</span>
+              <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
+              <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
+              <span class="desktop-team desktop-away">${escapeHtml(row.away)}</span>
+            </div>
             ${advSelectDesktop}
             <button type="button" class="${pr ? "saved" : ""}" data-save="${row.id}" ${locked ? "disabled" : ""}>${saveText}</button>
           </div>
-          ${pr ? `<div class="mini">${formatPrediction(row, pr)}</div>` : ""}
+          ${final ? `<div class="desktop-result-mini"><strong>Lõpp skoor:</strong> ${final}${adv ? ` · <strong>Edasi:</strong> ${escapeHtml(adv)}` : ""}</div>` : ""}
         </td>
-        <td class="desktop-pred-cell right" data-points-cell="${row.id}">${pointsHtml}</td>
+        <td class="desktop-pred-cell desktop-points right" data-points-cell="${row.id}">${pointsHtml}</td>
       `;
       tbody.appendChild(tr);
     }
