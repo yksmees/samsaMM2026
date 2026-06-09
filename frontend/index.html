@@ -360,6 +360,7 @@
       .desktop-lock-line{margin:4px 0;text-align:center}
       .desktop-lock-top{margin-bottom:2px}
     }
+    .lock-badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:4px 9px;background:rgba(250,204,21,.18);color:#fde68a;border:1px solid rgba(250,204,21,.36);font-size:11px;font-weight:950;line-height:1;white-space:nowrap;box-shadow:0 0 0 1px rgba(0,0,0,.08) inset}
 
 
     /* Mobile prediction card cleanup */
@@ -391,7 +392,6 @@
       .mobile-pred-card.points-0{background:rgba(153,27,27,.30);border-color:rgba(252,165,165,.55)}
       .mobile-card-top{display:flex;justify-content:space-between;gap:8px;color:#cbd5e1;font-size:12px;font-weight:900;margin-bottom:7px;align-items:center}
       .mobile-card-top-left,.mobile-card-top-right{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
-      .lock-badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:3px 7px;background:rgba(250,204,21,.18);color:#fde68a;border:1px solid rgba(250,204,21,.32);font-size:10px;font-weight:950;line-height:1;white-space:nowrap}
       .mobile-score-line{display:grid;grid-template-columns:minmax(0,1fr) 38px 38px minmax(0,1fr);gap:5px;align-items:center}
       .mobile-score-line input.small{width:38px;min-width:38px;padding:7px 3px;text-align:center;font-size:16px;font-weight:900;border-radius:10px}
       .mobile-team{font-size:13px;font-weight:950;color:#f8fafc;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1061,11 +1061,12 @@ async function loadMatchesAndPreds(){
       const ko = row.kickoff_utc ? new Date(row.kickoff_utc) : null;
       const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
       const koFull = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
-      const locked = !!(ko && (Date.now() >= (ko.getTime() - 60*60*1000)) && !(me && me.is_admin));
+      const isKickoffLocked = !!(ko && (Date.now() >= (ko.getTime() - 60*60*1000)));
+      const locked = !!(isKickoffLocked && !(me && me.is_admin));
       const finished = !!(row.is_finished || final);
       const colorClass = pointColorClass(row, pr);
-      tr.className = `${finished ? "match-finished" : ""} ${locked ? "match-locked" : ""} ${colorClass}`.trim();
-      const lockBadge = locked ? `<span class="lock-badge">Lukus</span>` : "";
+      tr.className = `${finished ? "match-finished" : ""} ${isKickoffLocked ? "match-locked" : ""} ${colorClass}`.trim();
+      const lockBadge = isKickoffLocked ? `<span class="lock-badge">Lukus</span>` : "";
       const showAdvSelect = isPlayoff(row) && pr && Number(pr.pred_home) === Number(pr.pred_away);
       const currentAdv = pr?.advancing_team || "";
       const adv = matchAdvancer(row);
@@ -1102,7 +1103,7 @@ async function loadMatchesAndPreds(){
         <td class="desktop-pred-cell desktop-time match-time">${koTxt}</td>
         <td class="desktop-pred-cell desktop-pred pred-cell">
           <div class="pred-controls prediction-action-scope">
-            ${locked ? `<div class="desktop-lock-line desktop-lock-top">${lockBadge}</div>` : ""}
+            ${isKickoffLocked ? `<div class="desktop-lock-line desktop-lock-top">${lockBadge}</div>` : ""}
             <div class="desktop-score-line">
               <span class="desktop-team desktop-home">${escapeHtml(row.home)}</span>
               <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
