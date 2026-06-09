@@ -429,3 +429,30 @@ Endpoint vajab `CRON_SECRET` env muutujat. Kutsu seda Railway cronist või väli
 `/api/cron/sync-results?secret=SINU_CRON_SECRET`
 
 Cron sync kasutab sama API-Football fixture kaitset kui admini sync: kui `api_football_fixture_id` on mängul olemas, ei seota seda enam teise fixture'iga ümber.
+
+## Railway cron worker
+
+This package includes `cron-sync-results.js` for a separate Railway cron service.
+
+Use these settings only on the cron service:
+
+Start command:
+
+```bash
+node cron-sync-results.js
+```
+
+Variables:
+
+```env
+CRON_SECRET=the_same_secret_as_the_web_service
+CRON_TARGET_URL=https://your-samsung-domain/api/cron/sync-results
+```
+
+Cron schedule example:
+
+```cron
+*/10 * * * *
+```
+
+Do not change the web service start command. The web service should keep using `npm start`.
