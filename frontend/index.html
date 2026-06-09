@@ -357,7 +357,8 @@
       #mTable.prediction-table .adv-choice-list{grid-template-columns:1fr 1fr}
       .desktop-result-mini{margin-top:5px;text-align:center;color:#cbd5e1;font-size:12px;font-weight:850}
       .desktop-result-mini strong{color:#f8fafc}
-      .desktop-lock-line{margin-top:5px;text-align:center}
+      .desktop-lock-line{margin:4px 0;text-align:center}
+      .desktop-lock-top{margin-bottom:2px}
     }
 
 
@@ -1101,6 +1102,7 @@ async function loadMatchesAndPreds(){
         <td class="desktop-pred-cell desktop-time match-time">${koTxt}</td>
         <td class="desktop-pred-cell desktop-pred pred-cell">
           <div class="pred-controls prediction-action-scope">
+            ${locked ? `<div class="desktop-lock-line desktop-lock-top">${lockBadge}</div>` : ""}
             <div class="desktop-score-line">
               <span class="desktop-team desktop-home">${escapeHtml(row.home)}</span>
               <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
@@ -1110,7 +1112,6 @@ async function loadMatchesAndPreds(){
             ${advSelectDesktop}
             <button type="button" class="${pr ? "saved" : ""}" data-save="${row.id}" ${locked ? "disabled" : ""}>${saveText}</button>
           </div>
-          ${locked ? `<div class="desktop-lock-line">${lockBadge}</div>` : ""}
           ${final ? `<div class="desktop-result-mini"><strong>Lõpp skoor:</strong> ${final}${adv ? ` · <strong>Edasi:</strong> ${escapeHtml(adv)}` : ""}</div>` : ""}
         </td>
         <td class="desktop-pred-cell desktop-points right" data-points-cell="${row.id}">${pointsHtml}</td>
