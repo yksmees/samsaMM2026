@@ -110,26 +110,68 @@ function userFrom(event) {
 }
 
 function outcome(h,a){ return h>a?1:h<a?-1:0; }
-function calcPoints(ph,pa,fh,fa){
+function isPlayoffMatch(match){
+  return Number(match?.match_no || 0) >= 73;
+}
+function needsAdvancerChoice(ph, pa, match){
+  return isPlayoffMatch(match) && Number(ph) === Number(pa);
+}
+function predictedAdvancer(ph, pa, match, chosen){
+  if (!isPlayoffMatch(match)) return null;
+  if (Number(ph) > Number(pa)) return match.home;
+  if (Number(ph) < Number(pa)) return match.away;
+  return chosen || null;
+}
+function actualAdvancer(match){
+  if (!isPlayoffMatch(match)) return null;
+  if (match.advancing_team) return match.advancing_team;
+  const fh = Number(match.final_home);
+  const fa = Number(match.final_away);
+  if (!Number.isFinite(fh) || !Number.isFinite(fa)) return null;
+  if (fh > fa) return match.home;
+  if (fa > fh) return match.away;
+  return null;
+}
+function baseScorePoints(ph,pa,fh,fa){
   if (fh===null || fa===null || fh===undefined || fa===undefined) return 0;
-
-  // Täpne skoor
   if (ph===fh && pa===fa) return 4;
-
   const predictedOutcome = outcome(ph,pa);
   const finalOutcome = outcome(fh,fa);
-
   const exactHome = ph === fh ? 1 : 0;
   const exactAway = pa === fa ? 1 : 0;
-
-  // Sama tulemus (võitja/viik) + boonus õigete väravate eest
-  if (predictedOutcome === finalOutcome) {
-    return 2 + exactHome + exactAway;
-  }
-
-  // Vale tulemus, aga õiged kodu- või võõrsilväravad annavad 1p
+  if (predictedOutcome === finalOutcome) return 2 + exactHome + exactAway;
   return exactHome + exactAway;
 }
+function calcPoints(ph,pa,fh,fa, match=null, chosenAdvancer=null){
+  const base = baseScorePoints(Number(ph), Number(pa), fh, fa);
+  if (!match || !isPlayoffMatch(match) || !match.went_extra) return base;
+  const predicted = predictedAdvancer(Number(ph), Number(pa), match, chosenAdvancer);
+  const actual = actualAdvancer(match);
+  return base + (predicted && actual && predicted === actual ? 1 : 0);
+}
+function normalizeAnswerValue(value){
+  return String(value ?? "").trim().toLowerCase();
+}
+const DEFAULT_BONUS_QUESTIONS = [
+  { question_text:"Milline koondis tuleb maailmameistriks?", answer_type:"team", options_source:"teams", points:1, sort_order:1 },
+  { question_text:"Kes on turniiri suurim väravakütt?", answer_type:"player", options_source:"players", points:1, sort_order:2 },
+  { question_text:"Mitu väravat lööb oma viimasel suurturniiril Messi?", answer_type:"number", options_source:"0_20", points:1, sort_order:3 },
+  { question_text:"Mitu väravat lööb oma viimasel suurturniiril Ronaldo?", answer_type:"number", options_source:"0_20", points:1, sort_order:4 },
+  { question_text:"Kes võidab meie alagrupiturniiri ennustuse?", answer_type:"registered_user", options_source:"registered_users", points:1, sort_order:5 },
+  { question_text:"Kes jääb meie alagrupiturniiri ennustuses viimaseks?", answer_type:"registered_user", options_source:"registered_users", points:1, sort_order:6 }
+];
+const DEFAULT_PLAYER_OPTIONS = [
+  "Lionel Messi", "Cristiano Ronaldo", "Kylian Mbappé", "Erling Haaland", "Harry Kane", "Vinícius Júnior", "Jude Bellingham", "Lamine Yamal", "Jamal Musiala", "Neymar", "Robert Lewandowski", "Mohamed Salah", "Lautaro Martínez", "Julián Álvarez", "Raphinha", "Bukayo Saka", "Phil Foden", "Florian Wirtz", "Kai Havertz", "Bruno Fernandes"
+];
+const DEFAULT_RULES_TEXT = `Samsung JalkaMM 2026 ennustuses ennustad iga mängu 90 minuti skoori. Ennustus lukustub 1 tund enne mängu algust. Kui mäng on lukus, muutuvad teiste mängijate ennustused nähtavaks.
+
+Punktid: õige võitja või õige viik annab 2 punkti. Õige kodutiimi väravate arv annab 1 punkti. Õige võõrsiltiimi väravate arv annab 1 punkti. Täpne skoor annab kokku 4 punkti.
+
+Play-offides arvestatakse samuti 90 minuti skoori. Kui mäng läheb lisaajale või penaltitele, saab kasutaja 1 lisapunkti juhul, kui tema ennustusest tulenev edasipääseja on õige. Kui play-off mäng lõpeb 90 minutiga, edasipääseja eest lisapunkti ei anta.
+
+Edetabelis on kaks arvestust: alagrupimängude edetabel ja play-off edetabel. Play-off algab nullist ning alagrupi punktid sinna üle ei tule. Lisaküsimuste punktid lisatakse play-off edetabelisse.
+
+Lisaküsimustele saab vastata eraldi vaates. Admin määrab õiged vastused ja saab vajadusel vastuseid käsitsi õigeks või valeks märkida.`;
 
 const API_FOOTBALL_BASE_URL = "https://v3.football.api-sports.io";
 const API_FOOTBALL_LEAGUE_ID = 1;
@@ -234,10 +276,12 @@ async function fetchApiFootballFixtures(){
 }
 
 async function recalcPointsForMatch(sb, matchId, fh, fa){
-  const preds = await sb.from("predictions").select("id,pred_home,pred_away").eq("match_id", matchId);
+  const matchRes = await sb.from("matches").select("*").eq("id", matchId).single();
+  const match = matchRes.error ? null : matchRes.data;
+  const preds = await sb.from("predictions").select("id,pred_home,pred_away,advancing_team").eq("match_id", matchId);
   if (preds.error) return;
   for (const p of preds.data || []){
-    const pts = calcPoints(p.pred_home, p.pred_away, fh, fa);
+    const pts = calcPoints(p.pred_home, p.pred_away, fh, fa, match, p.advancing_team);
     await sb.from("predictions").update({ points: pts }).eq("id", p.id);
   }
 }
@@ -274,17 +318,23 @@ async function syncApiFootballResults(sb, { force=false } = {}){
     }
 
     if (apiFixtureFinished(fx)){
-      const homeGoals = fx?.goals?.home;
-      const awayGoals = fx?.goals?.away;
+      const statusShort = fx?.fixture?.status?.short || "";
+      const wentExtra = statusShort === "AET" || statusShort === "PEN";
+      const homeGoals = fx?.score?.fulltime?.home ?? fx?.goals?.home;
+      const awayGoals = fx?.score?.fulltime?.away ?? fx?.goals?.away;
       if (homeGoals !== null && awayGoals !== null && homeGoals !== undefined && awayGoals !== undefined){
         const changed =
           match.final_home !== homeGoals ||
           match.final_away !== awayGoals ||
+          match.went_extra !== wentExtra ||
+          match.status_short !== statusShort ||
           !match.is_finished;
 
         patch.final_home = homeGoals;
         patch.final_away = awayGoals;
         patch.is_finished = true;
+        patch.status_short = statusShort;
+        patch.went_extra = wentExtra;
 
         if (Object.keys(patch).length){
           const upd = await sb.from("matches").update(patch).eq("id", match.id).select("*").single();
@@ -660,6 +710,9 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
   if (body.final_away !== undefined) patch.final_away = body.final_away === null ? null : Number(body.final_away);
   if (body.final_home !== undefined || body.final_away !== undefined) patch.manual_result_override = true;
   if (body.is_finished !== undefined) patch.is_finished = !!body.is_finished;
+  if (body.went_extra !== undefined) patch.went_extra = !!body.went_extra;
+  if (body.status_short !== undefined) patch.status_short = String(body.status_short || "");
+  if (body.advancing_team !== undefined) patch.advancing_team = body.advancing_team || null;
 
   const upd = await sb.from("matches").update(patch).eq("match_no", matchNo).select("*").single();
   if (upd.error) return json(500, { error: upd.error.message });
@@ -667,10 +720,10 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
   const fh = upd.data.final_home;
   const fa = upd.data.final_away;
   if (fh !== null && fa !== null && fh !== undefined && fa !== undefined) {
-    const preds = await sb.from("predictions").select("id,pred_home,pred_away").eq("match_id", upd.data.id);
+    const preds = await sb.from("predictions").select("id,pred_home,pred_away,advancing_team").eq("match_id", upd.data.id);
     if (!preds.error) {
       for (const p of preds.data || []) {
-        const pts = calcPoints(p.pred_home, p.pred_away, fh, fa);
+        const pts = calcPoints(p.pred_home, p.pred_away, fh, fa, upd.data, p.advancing_team);
         await sb.from("predictions").update({ points: pts }).eq("id", p.id);
       }
     }
@@ -702,10 +755,10 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
       const fh = upd.data.final_home;
       const fa = upd.data.final_away;
       if (fh !== null && fa !== null && fh !== undefined && fa !== undefined) {
-        const preds = await sb.from("predictions").select("id,pred_home,pred_away").eq("match_id", id);
+        const preds = await sb.from("predictions").select("id,pred_home,pred_away,advancing_team").eq("match_id", id);
         if (!preds.error) {
           for (const p of preds.data || []) {
-            const pts = calcPoints(p.pred_home, p.pred_away, fh, fa);
+            const pts = calcPoints(p.pred_home, p.pred_away, fh, fa, upd.data, p.advancing_team);
             await sb.from("predictions").update({ points: pts }).eq("id", p.id);
           }
         }
@@ -727,7 +780,7 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
     if (event.httpMethod === "GET" && route === "predictions") {
       const u = userFrom(event);
       if (!u) return json(401, { error: "Pole sisse logitud." });
-      const q = await sb.from("predictions").select("match_id,pred_home,pred_away,points").eq("player_id", u.sub);
+      const q = await sb.from("predictions").select("match_id,pred_home,pred_away,points,advancing_team").eq("player_id", u.sub);
       if (q.error) return json(500, { error: q.error.message });
       return json(200, { ok: true, predictions: q.data });
     }
@@ -793,28 +846,31 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
 
   const matchesRes = await sb
     .from("matches")
-    .select("id,match_no,stage,home,away,location,kickoff_utc,final_home,final_away,is_finished")
+    .select("id,match_no,stage,home,away,location,kickoff_utc,final_home,final_away,is_finished,went_extra,status_short,advancing_team")
     .order("match_no", { ascending: true });
 
   if (matchesRes.error) return json(500, { error: matchesRes.error.message });
 
-  const finishedMatches = (matchesRes.data || []).filter(m =>
-    m.is_finished ||
-    (
-      m.final_home !== null &&
-      m.final_home !== undefined &&
-      m.final_away !== null &&
-      m.final_away !== undefined
-    )
-  );
+  const now = Date.now();
+  const visibleMatches = (matchesRes.data || []).filter(m => {
+    const kickoff = m.kickoff_utc ? new Date(m.kickoff_utc).getTime() : null;
+    return m.is_finished ||
+      (
+        m.final_home !== null &&
+        m.final_home !== undefined &&
+        m.final_away !== null &&
+        m.final_away !== undefined
+      ) ||
+      (kickoff && now >= kickoff - 60 * 60 * 1000);
+  });
 
-  const matchIds = finishedMatches.map(m => m.id);
+  const matchIds = visibleMatches.map(m => m.id);
   let predictions = [];
 
   if (matchIds.length) {
     const predsRes = await sb
       .from("predictions")
-      .select("match_id,player_id,pred_home,pred_away,points")
+      .select("match_id,player_id,pred_home,pred_away,points,advancing_team")
       .in("match_id", matchIds);
 
     if (predsRes.error) return json(500, { error: predsRes.error.message });
@@ -824,7 +880,7 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
   return json(200, {
     ok: true,
     players: (playersRes.data || []).filter(p => !p.is_admin).sort((a,b) => String(a.display_name || "").localeCompare(String(b.display_name || ""), "et")),
-    matches: finishedMatches,
+    matches: visibleMatches,
     predictions
   });
 }
@@ -836,10 +892,11 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
   const match_id = Number(body.match_id);
   const pred_home = Number(body.pred_home);
   const pred_away = Number(body.pred_away);
+  const advancing_team = body.advancing_team ? String(body.advancing_team) : null;
 
   // Lukustus: 1 tund enne mängu algust ei saa enam muuta (admin võib alati muuta)
   const m = await sb.from("matches")
-    .select("final_home,final_away,kickoff_utc")
+    .select("*")
     .eq("id", match_id)
     .single();
 
@@ -858,77 +915,228 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
 
   const up = await sb.from("predictions").upsert({
     player_id: u.sub, match_id, pred_home, pred_away, points
-  }, { onConflict: "player_id,match_id" }).select("match_id,pred_home,pred_away,points").single();
+  }, { onConflict: "player_id,match_id" }).select("match_id,pred_home,pred_away,points,advancing_team").single();
 
   if (up.error) return json(500, { error: up.error.message });
   return json(200, { ok: true, prediction: up.data });
 }
 
 
+async function getAppSetting(sb, key, fallback="") {
+  const r = await sb.from("app_settings").select("value").eq("key", key).maybeSingle();
+  if (r.error || !r.data) return fallback;
+  return r.data.value ?? fallback;
+}
+async function setAppSetting(sb, key, value) {
+  return sb.from("app_settings").upsert({ key, value:String(value ?? "") }, { onConflict:"key" });
+}
+async function buildBonusOptions(sb){
+  const matches = await sb.from("matches").select("home,away");
+  const users = await sb.from("players").select("id,display_name,is_admin").order("display_name", { ascending:true });
+  const teams = new Set();
+  for (const m of matches.data || []) { if (m.home) teams.add(m.home); if (m.away) teams.add(m.away); }
+  return {
+    teams: Array.from(teams).sort((a,b)=>a.localeCompare(b,"et")).map(x=>({ value:x, label:x })),
+    players: DEFAULT_PLAYER_OPTIONS.map(x=>({ value:x, label:x })),
+    numbers: Array.from({ length:21 }, (_,i)=>({ value:String(i), label:String(i) })),
+    registered_users: (users.data || []).filter(u=>!u.is_admin).map(u=>({ value:u.id, label:u.display_name }))
+  };
+}
+async function ensureDefaultBonusQuestions(sb){
+  const existing = await sb.from("bonus_questions").select("id").limit(1);
+  if (!existing.error && (existing.data || []).length) return;
+  await sb.from("bonus_questions").insert(DEFAULT_BONUS_QUESTIONS);
+}
+async function recalcBonusAnswers(sb){
+  const qRes = await sb.from("bonus_questions").select("id,correct_answer_value,points");
+  if (qRes.error) return { updated:0, error:qRes.error.message };
+  const qMap = new Map((qRes.data || []).map(q => [q.id, q]));
+  const aRes = await sb.from("bonus_answers").select("id,question_id,answer_value");
+  if (aRes.error) return { updated:0, error:aRes.error.message };
+  let updated = 0;
+  for (const a of aRes.data || []){
+    const q = qMap.get(a.question_id);
+    if (!q || !q.correct_answer_value) continue;
+    const ok = normalizeAnswerValue(a.answer_value) === normalizeAnswerValue(q.correct_answer_value);
+    const pts = ok ? Number(q.points || 1) : 0;
+    await sb.from("bonus_answers").update({ is_correct:ok, points:pts }).eq("id", a.id);
+    updated += 1;
+  }
+  return { updated };
+}
+
+if (event.httpMethod === "GET" && route === "rules") {
+  const value = await getAppSetting(sb, "rules_text", DEFAULT_RULES_TEXT);
+  return json(200, { ok:true, rules_text:value });
+}
+
+if (event.httpMethod === "PUT" && route === "admin/rules") {
+  const u = userFrom(event);
+  if (!u || !u.is_admin) return json(403, { error:"Admini õigused puuduvad." });
+  const body = JSON.parse(event.body || "{}");
+  const saved = await setAppSetting(sb, "rules_text", body.rules_text || "");
+  if (saved.error) return json(500, { error:saved.error.message });
+  return json(200, { ok:true });
+}
+
+if (event.httpMethod === "GET" && route === "bonus") {
+  const u = userFrom(event);
+  if (!u) return json(401, { error:"Pole sisse logitud." });
+  await ensureDefaultBonusQuestions(sb);
+  const questions = await sb.from("bonus_questions").select("*").order("sort_order", { ascending:true });
+  const answers = await sb.from("bonus_answers").select("*").eq("player_id", u.sub);
+  if (questions.error || answers.error) return json(500, { error:(questions.error || answers.error).message });
+  const options = await buildBonusOptions(sb);
+  return json(200, { ok:true, questions:questions.data || [], answers:answers.data || [], options });
+}
+
+if (event.httpMethod === "POST" && route === "bonus/answers") {
+  const u = userFrom(event);
+  if (!u) return json(401, { error:"Pole sisse logitud." });
+  const body = JSON.parse(event.body || "{}");
+  const items = Array.isArray(body.answers) ? body.answers : [];
+  if (!items.length) return json(400, { error:"Vastuseid pole." });
+  const qRes = await sb.from("bonus_questions").select("id,question_text,is_locked,correct_answer_value,points");
+  if (qRes.error) return json(500, { error:qRes.error.message });
+  const qMap = new Map((qRes.data || []).map(q => [q.id, q]));
+  const payload = [];
+  for (const item of items){
+    const q = qMap.get(Number(item.question_id));
+    if (!q || q.is_locked) continue;
+    const answer_value = String(item.answer_value ?? "").trim();
+    const answer_text = String(item.answer_text ?? answer_value).trim();
+    const hasCorrect = !!q.correct_answer_value;
+    const is_correct = hasCorrect ? normalizeAnswerValue(answer_value) === normalizeAnswerValue(q.correct_answer_value) : false;
+    payload.push({ player_id:u.sub, question_id:q.id, answer_value, answer_text, is_correct, points:is_correct ? Number(q.points || 1) : 0 });
+  }
+  if (!payload.length) return json(400, { error:"Ühtegi salvestatavat vastust ei olnud." });
+  const up = await sb.from("bonus_answers").upsert(payload, { onConflict:"player_id,question_id" }).select("*");
+  if (up.error) return json(500, { error:up.error.message });
+  return json(200, { ok:true, answers:up.data || [] });
+}
+
+if (event.httpMethod === "GET" && route === "admin/bonus") {
+  const u = userFrom(event);
+  if (!u || !u.is_admin) return json(403, { error:"Admini õigused puuduvad." });
+  await ensureDefaultBonusQuestions(sb);
+  const questions = await sb.from("bonus_questions").select("*").order("sort_order", { ascending:true });
+  const answers = await sb.from("bonus_answers").select("*,players(display_name),bonus_questions(question_text)").order("created_at", { ascending:true });
+  if (questions.error || answers.error) return json(500, { error:(questions.error || answers.error).message });
+  const options = await buildBonusOptions(sb);
+  return json(200, { ok:true, questions:questions.data || [], answers:answers.data || [], options });
+}
+
+if (event.httpMethod === "POST" && route === "admin/bonus/questions") {
+  const u = userFrom(event);
+  if (!u || !u.is_admin) return json(403, { error:"Admini õigused puuduvad." });
+  const body = JSON.parse(event.body || "{}");
+  const payload = {
+    question_text:String(body.question_text || "").trim(),
+    answer_type:String(body.answer_type || "text"),
+    options_source:String(body.options_source || body.answer_type || "text"),
+    correct_answer_value:body.correct_answer_value ? String(body.correct_answer_value) : null,
+    correct_answer_text:body.correct_answer_text ? String(body.correct_answer_text) : null,
+    points:Number(body.points || 1),
+    is_locked:!!body.is_locked,
+    sort_order:Number(body.sort_order || 100)
+  };
+  if (!payload.question_text) return json(400, { error:"Küsimuse tekst puudub." });
+  const ins = await sb.from("bonus_questions").insert(payload).select("*").single();
+  if (ins.error) return json(500, { error:ins.error.message });
+  await recalcBonusAnswers(sb);
+  return json(200, { ok:true, question:ins.data });
+}
+
+const bq = route.match(/^admin\/bonus\/questions\/(\d+)$/);
+if (bq && event.httpMethod === "PUT") {
+  const u = userFrom(event);
+  if (!u || !u.is_admin) return json(403, { error:"Admini õigused puuduvad." });
+  const body = JSON.parse(event.body || "{}");
+  const patch = {};
+  for (const key of ["question_text","answer_type","options_source","correct_answer_value","correct_answer_text"]) if (body[key] !== undefined) patch[key] = body[key] === null ? null : String(body[key]);
+  if (body.points !== undefined) patch.points = Number(body.points || 1);
+  if (body.is_locked !== undefined) patch.is_locked = !!body.is_locked;
+  if (body.sort_order !== undefined) patch.sort_order = Number(body.sort_order || 100);
+  const upd = await sb.from("bonus_questions").update(patch).eq("id", Number(bq[1])).select("*").single();
+  if (upd.error) return json(500, { error:upd.error.message });
+  await recalcBonusAnswers(sb);
+  return json(200, { ok:true, question:upd.data });
+}
+if (bq && event.httpMethod === "DELETE") {
+  const u = userFrom(event);
+  if (!u || !u.is_admin) return json(403, { error:"Admini õigused puuduvad." });
+  const del = await sb.from("bonus_questions").delete().eq("id", Number(bq[1]));
+  if (del.error) return json(500, { error:del.error.message });
+  return json(200, { ok:true });
+}
+
+const ba = route.match(/^admin\/bonus\/answers\/(\d+)$/);
+if (ba && event.httpMethod === "PUT") {
+  const u = userFrom(event);
+  if (!u || !u.is_admin) return json(403, { error:"Admini õigused puuduvad." });
+  const body = JSON.parse(event.body || "{}");
+  const patch = {};
+  if (body.is_correct !== undefined) patch.is_correct = !!body.is_correct;
+  if (body.points !== undefined) patch.points = Number(body.points || 0);
+  if (body.answer_value !== undefined) patch.answer_value = String(body.answer_value || "");
+  if (body.answer_text !== undefined) patch.answer_text = String(body.answer_text || "");
+  const upd = await sb.from("bonus_answers").update(patch).eq("id", Number(ba[1])).select("*").single();
+  if (upd.error) return json(500, { error:upd.error.message });
+  return json(200, { ok:true, answer:upd.data });
+}
+
+if (event.httpMethod === "POST" && route === "admin/bonus/recalculate") {
+  const u = userFrom(event);
+  if (!u || !u.is_admin) return json(403, { error:"Admini õigused puuduvad." });
+  const r = await recalcBonusAnswers(sb);
+  if (r.error) return json(500, { error:r.error });
+  return json(200, { ok:true, updated:r.updated });
+}
+
 // Leaderboard
 if (event.httpMethod === "GET" && route === "leaderboard") {
   const players = await sb.from("players").select("id,display_name,is_admin");
   const preds = await sb.from("predictions").select("player_id,match_id,points");
   const matches = await sb.from("matches").select("id,match_no,is_finished,final_home,final_away").order("match_no", { ascending: true });
+  const bonus = await sb.from("bonus_answers").select("player_id,points");
 
   if (players.error || preds.error || matches.error) {
     return json(500, { error: (players.error || preds.error || matches.error).message });
   }
 
   const allPlayers = (players.data || []).filter(p => !p.is_admin);
+  const matchMap = new Map((matches.data || []).map(m => [m.id, m]));
   const allPreds = preds.data || [];
-  const finishedMatches = (matches.data || []).filter(m =>
-    m.is_finished ||
-    (
-      m.final_home !== null &&
-      m.final_home !== undefined &&
-      m.final_away !== null &&
-      m.final_away !== undefined
-    )
-  ).sort((a,b)=>a.match_no-b.match_no);
+  const bonusRows = bonus.error ? [] : (bonus.data || []);
 
-  const latestFinished = finishedMatches.length ? finishedMatches[finishedMatches.length - 1] : null;
-
-  function makeRows(excludeMatchId = null) {
+  function makeRows(type) {
     const map = new Map();
-    for (const p of allPlayers) {
-      map.set(p.id, {
-        player_id: p.id,
-        display_name: p.display_name,
-        points: 0
-      });
-    }
+    for (const p of allPlayers) map.set(p.id, { player_id:p.id, display_name:p.display_name, points:0 });
 
     for (const pr of allPreds) {
-      if (excludeMatchId && pr.match_id === excludeMatchId) continue;
+      const m = matchMap.get(pr.match_id);
+      if (!m) continue;
+      const isGroup = Number(m.match_no) <= 72;
+      const include = type === "group" ? isGroup : !isGroup;
+      if (!include) continue;
       const row = map.get(pr.player_id);
-      if (row) row.points += (pr.points || 0);
+      if (row) row.points += Number(pr.points || 0);
+    }
+
+    if (type === "playoff") {
+      for (const ba of bonusRows) {
+        const row = map.get(ba.player_id);
+        if (row) row.points += Number(ba.points || 0);
+      }
     }
 
     return Array.from(map.values()).sort((a,b) => {
       if ((b.points || 0) !== (a.points || 0)) return (b.points || 0) - (a.points || 0);
       return String(a.display_name || "").localeCompare(String(b.display_name || ""), "et");
-    });
+    }).map((row, index) => ({ ...row, rank:index + 1 }));
   }
 
-  const current = makeRows(null);
-  const previous = latestFinished ? makeRows(latestFinished.id) : current;
-
-  const previousRank = new Map();
-  previous.forEach((row, index) => previousRank.set(row.player_id, index + 1));
-
-  const leaderboard = current.map((row, index) => {
-    const rank = index + 1;
-    const prev = previousRank.get(row.player_id) || rank;
-    return {
-      ...row,
-      rank,
-      previous_rank: prev,
-      movement: prev - rank
-    };
-  });
-
-  return json(200, { ok: true, leaderboard });
+  return json(200, { ok: true, group: makeRows("group"), playoff: makeRows("playoff") });
 }
 
 // Admin players CRUD

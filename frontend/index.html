@@ -92,6 +92,16 @@
     .others-list{display:flex;flex-direction:column;gap:2px;margin-top:4px}
     .score-badge{display:inline-block;min-width:24px;padding:2px 6px;border:1px solid var(--line);border-radius:999px;margin-left:6px}
 
+    .score-pill{display:inline-block;border-radius:999px;padding:2px 7px;font-weight:900;font-size:12px;line-height:1.2;margin-top:4px;color:#061020}
+    .score-pill.p5{background:#a7f3c1}.score-pill.p4{background:#42d392}.score-pill.p3{background:#7fb3ff}.score-pill.p2{background:#ffe56b}.score-pill.p1{background:#ffb15c}.score-pill.p0{background:#ff7b7b}
+    .predicted-score{display:block;font-weight:800;color:var(--text)}
+    .adv-mark{font-weight:900;margin-left:4px;color:#42d392}
+    .answer-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,260px);gap:10px;align-items:center;margin-top:10px}
+    .rules-text{white-space:pre-wrap;line-height:1.55;color:var(--text);margin-top:10px}
+    textarea.admin-textarea{width:100%;min-height:180px;background:#0d1430;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 12px;font:inherit;box-sizing:border-box}
+    .mini{font-size:12px;color:var(--muted)}
+    @media(max-width:720px){.answer-grid{grid-template-columns:1fr}.pred-controls{display:flex;flex-wrap:wrap}.pred-controls select{min-width:140px}}
+
   </style>
 </head>
 <body>
@@ -157,7 +167,9 @@
           <div class="tabs">
             <button class="tab active" data-tab="pred">Ennustused</button>
             <button class="tab" data-tab="lb">Edetabel</button>
+            <button class="tab" data-tab="bonus">Lisaküsimused</button>
             <button class="tab" data-tab="others">Teiste ennustused</button>
+            <button class="tab" data-tab="rules">Reeglid</button>
             <button class="tab" data-tab="account">Minu konto</button>
             <button class="tab" data-tab="admin">Admin</button>
           </div>
@@ -183,14 +195,39 @@
       </div>
 
       <div id="lb" class="hide" style="margin-top:8px">
-        <div class="sub">Punktisumma kõigi mängude peale.</div>
+        <div class="sub">Samsungi versioonis on kaks eraldi arvestust. Play-off algab nullist ning lisaküsimuste punktid lisatakse play-off edetabelisse.</div>
         <div id="lbMsg" class="msg"></div>
-        <table id="lbTable">
-          <thead><tr><th>Koht</th><th>Mängija</th><th class="right">Punktid</th></tr></thead>
-          <tbody></tbody>
-        </table>
+        <div class="grid cols2" style="margin-top:10px">
+          <div class="card">
+            <strong>Alagrupimängude edetabel</strong>
+            <table id="lbGroupTable">
+              <thead><tr><th>Koht</th><th>Mängija</th><th class="right">Punktid</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <strong>Play-off edetabel</strong>
+            <div class="mini">Sisaldab play-off mängude punkte ja lisaküsimuste punkte.</div>
+            <table id="lbPlayoffTable">
+              <thead><tr><th>Koht</th><th>Mängija</th><th class="right">Punktid</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
+
+<div id="bonus" class="hide" style="margin-top:8px">
+  <div class="sub">Vasta lisaküsimustele. Valikud tulevad nimekirjast ning punktid lisatakse play-off edetabelisse.</div>
+  <div id="bonusMsg" class="msg"></div>
+  <div id="bonusQuestions" class="card" style="margin-top:10px"></div>
+</div>
+
+<div id="rules" class="hide" style="margin-top:8px">
+  <div class="sub">Samsung JalkaMM 2026 reeglid.</div>
+  <div id="rulesMsg" class="msg"></div>
+  <div class="card rules-text" id="rulesText" style="margin-top:10px"></div>
+</div>
 
 <div id="account" class="hide" style="margin-top:8px">
   <div class="sub">Siin saad muuta enda parooli pärast sisselogimist.</div>
@@ -249,10 +286,56 @@
   </div>
 </div>
 
+<div class="card" style="margin-top:10px">
+  <strong>Reeglite muutmine</strong>
+  <div class="sub" style="margin-top:8px">See tekst kuvatakse kasutajatele Reeglid vaates.</div>
+  <textarea id="adminRulesText" class="admin-textarea" placeholder="Reeglite tekst"></textarea>
+  <div class="row" style="margin-top:10px">
+    <button id="btnSaveRules" class="primary" type="button">Salvesta reeglid</button>
+  </div>
+  <div id="adminRulesMsg" class="msg"></div>
+</div>
+
+<div class="card" style="margin-top:10px">
+  <strong>Lisaküsimuste haldus</strong>
+  <div class="sub" style="margin-top:8px">Muuda küsimusi, tüüpe ja õigeid vastuseid. Automaatne kontroll kasutab sama tehnilist väärtust, mida kasutaja valib.</div>
+  <div id="adminBonusMsg" class="msg"></div>
+  <div id="adminBonusQuestions" style="margin-top:10px"></div>
+  <div class="row" style="margin-top:10px">
+    <input id="newBonusText" placeholder="uus küsimus" />
+    <select id="newBonusType">
+      <option value="team">team</option>
+      <option value="player">player</option>
+      <option value="number">number</option>
+      <option value="registered_user">registered_user</option>
+      <option value="text">text</option>
+    </select>
+    <button id="btnAddBonusQuestion" class="primary" type="button">Lisa küsimus</button>
+    <button id="btnRecalcBonus" type="button">Arvuta lisaküsimused ümber</button>
+  </div>
+  <div class="screenshot-board-wrap">
+    <table id="bonusAnswersTable">
+      <thead><tr><th>Kasutaja</th><th>Küsimus</th><th>Vastus</th><th>Õige</th><th class="right">Punktid</th><th>Tegevus</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" id="adminBonusScreenshotCard" style="margin-top:10px">
+  <strong>Lisaküsimused screenshotiks</strong>
+  <div class="sub" style="margin-top:8px">Kompaktne tabel kõigi mitte-admin kasutajate vastustega.</div>
+  <div class="row" style="margin-top:10px">
+    <button id="btnRefreshBonusScreenshot" type="button">Uuenda</button>
+  </div>
+  <div class="screenshot-board-wrap">
+    <table id="bonusScreenshotBoard" class="screenshot-board"><tbody></tbody></table>
+  </div>
+</div>
+
 <div class="card" id="adminScreenshotCard" style="margin-top:10px">
   <strong>Teiste ennustused screenshotiks</strong>
   <div class="sub" style="margin-top:8px">
-    Vali lõppenud mäng või märgi “mitu mängu kõrvuti”. Tabel näitab õiget tulemust ja kõigi mitte-admin kasutajate ennustusi tähestiku järjekorras.
+    Vali lukus või lõppenud mäng või märgi “mitu mängu kõrvuti”. Tabel näitab õiget tulemust, kui see on olemas, ja kõigi mitte-admin kasutajate ennustusi tähestiku järjekorras.
   </div>
   <div class="screenshot-tools">
   <label>Vaade</label>
@@ -299,7 +382,7 @@
               <button id="btnAddPlayer" class="primary">Lisa</button>
             </div>
             <table id="pTable">
-              <thead><tr><th>Username</th><th>Admin</th><th class="right">Tegevus</th></tr></thead>
+              <thead><tr><th>Username</th><th>Nimi</th><th>Admin</th><th class="right">Tegevus</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -312,6 +395,12 @@
               <input id="mid" class="small" placeholder="mängu #" />
               <input id="fh" class="small" placeholder="kodu" />
               <input id="fa" class="small" placeholder="võõrsil" />
+              <select id="resultStatus">
+                <option value="FT">FT</option>
+                <option value="AET">AET</option>
+                <option value="PEN">PEN</option>
+              </select>
+              <input id="advancingTeam" placeholder="edasipääseja play-offis" />
               <button id="btnSetFinal" class="primary">Salvesta tulemus</button>
             </div>
             <div class="row" style="margin-top:10px">
@@ -374,6 +463,8 @@
 const api = (p)=>`/api/${p}`;
 let token = localStorage.getItem("token") || "";
 let me = null;
+let bonusData = null;
+let adminBonusData = null;
 
 const $ = (id)=>document.getElementById(id);
 
@@ -400,15 +491,38 @@ function setWho(){
   if ($("importTimesCard")) $("importTimesCard").classList.add("hide");
 }
 
-function pointColorClass(row, pr){
-  const finished = row.is_finished || (row.final_home !== null && row.final_away !== null && row.final_home !== undefined && row.final_away !== undefined);
-  if (!finished || !pr) return "";
-  if ((pr.points || 0) >= 4) return "color-green";
-  if ((pr.points || 0) === 3) return "color-blue";
-  if ((pr.points || 0) === 2) return "color-yellow";
-  if ((pr.points || 0) === 1) return "color-orange";
-  return "color-red";
+function pointBadge(points){
+  const p = Number(points || 0);
+  const label = p === 5 ? "4+1p" : `${p}p`;
+  const cls = p >= 5 ? "p5" : p === 4 ? "p4" : p === 3 ? "p3" : p === 2 ? "p2" : p === 1 ? "p1" : "p0";
+  return `<span class="score-pill ${cls}">${label}</span>`;
 }
+function pointColorClass(row, pr){ return ""; }
+function isPlayoff(row){ return Number(row?.match_no || 0) >= 73; }
+function isTiePrediction(pr){ return pr && Number(pr.pred_home) === Number(pr.pred_away); }
+function fifaCode(name){
+  const map = {
+    "Lithuania":"LTU","Latvia":"LVA","Estonia":"EST","Faroe Islands":"FRO","Germany":"GER","Portugal":"POR","Qatar":"QAT","Switzerland":"SUI","Haiti":"HAI","Scotland":"SCO",
+    "South Africa":"RSA","South Korea":"KOR","Czechia":"CZE","Bosnia and Herzegovina":"BIH","United States":"USA","Türkiye":"TUR","Turkey":"TUR","Ivory Coast":"CIV","Curacao":"CUW","Netherlands":"NED","Saudi Arabia":"KSA","New Zealand":"NZL","Cape Verde":"CPV","Congo DR":"COD","England":"ENG","Mexico":"MEX","Canada":"CAN","Brazil":"BRA","Morocco":"MAR","Australia":"AUS","Paraguay":"PAR","Ecuador":"ECU","Japan":"JPN","Sweden":"SWE","Tunisia":"TUN","Uruguay":"URU","Spain":"ESP","Belgium":"BEL","Iran":"IRN","Egypt":"EGY","France":"FRA","Senegal":"SEN","Iraq":"IRQ","Norway":"NOR","Argentina":"ARG","Algeria":"ALG","Austria":"AUT","Jordan":"JOR","Ghana":"GHA","Panama":"PAN","Uzbekistan":"UZB","Colombia":"COL","Croatia":"CRO"
+  };
+  const s = String(name || "").trim();
+  return map[s] || s.replace(/[^A-Za-z]/g, "").slice(0,3).toUpperCase();
+}
+function formatPrediction(match, pr){
+  if (!pr) return "";
+  let txt = `${pr.pred_home}:${pr.pred_away}`;
+  if (isPlayoff(match)){
+    if (isTiePrediction(pr) && pr.advancing_team) txt += `→${fifaCode(pr.advancing_team)}`;
+    const adv = match.advancing_team || (Number(match.final_home) > Number(match.final_away) ? match.home : Number(match.final_away) > Number(match.final_home) ? match.away : "");
+    const predicted = Number(pr.pred_home) > Number(pr.pred_away) ? match.home : Number(pr.pred_away) > Number(pr.pred_home) ? match.away : pr.advancing_team;
+    if (adv && predicted && adv === predicted) txt += `<span class="adv-mark">↑</span>`;
+  }
+  return txt;
+}
+function optionList(options, selected=""){
+  return (options || []).map(o => `<option value="${escapeHtml(o.value)}" ${String(o.value)===String(selected)?"selected":""}>${escapeHtml(o.label)}</option>`).join("");
+}
+function escapeHtml(v){ return String(v ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch] || ch)); }
 
 function renderOthers(preds){
   if (!preds || !preds.length) return "";
@@ -478,8 +592,11 @@ async function loadAll(){
   document.getElementById('viewsCard').classList.toggle('hide', !me);
   await loadMatchesAndPreds();
   await loadLeaderboard();
+  await loadBonus();
+  await loadRules();
   await loadOthersView();
   await loadPlayers();
+  await loadAdminBonus();
   await loadAdminScreenshotBoard();
   toggleAdminTab();
   const activeTab = document.querySelector(".tab.active")?.getAttribute("data-tab") || "pred";
@@ -531,6 +648,7 @@ const finished = !!(row.is_finished || final);
 const locationAndTime = `${row.location || ""}${row.location && koTxt ? " • " : ""}${koTxt}`;
 const colorClass = pointColorClass(row, pr);
 if (finished && colorClass) tr.className = `row-finished ${colorClass}`;
+const advSelect = isPlayoff(row) ? `<select data-mid="${row.id}" data-side="adv" ${locked ? "disabled" : ""}><option value="">Edasipääseja viigi korral</option><option value="${escapeHtml(row.home)}" ${pr?.advancing_team===row.home?"selected":""}>${escapeHtml(row.home)}</option><option value="${escapeHtml(row.away)}" ${pr?.advancing_team===row.away?"selected":""}>${escapeHtml(row.away)}</option></select>` : "";
 tr.innerHTML = `
   <td>${row.match_no}</td>
   <td><span class="pill">${row.stage}</span></td>
@@ -541,10 +659,12 @@ tr.innerHTML = `
     <div class="pred-controls">
       <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
       <input class="small" data-mid="${row.id}" data-side="a" value="${pr?pr.pred_away:""}" placeholder="0" ${locked ? "disabled" : ""}>
+      ${advSelect}
       <button type="button" class="${pr ? "saved" : ""}" data-save="${row.id}" ${locked ? "disabled" : ""}>${pr ? "Salvestatud" : "Salvesta"}</button>
     </div>
+    ${pr ? `<div class="mini">${formatPrediction(row, pr)}</div>` : ""}
   </td>
-  <td class="right">${pr?pr.points:0}</td>
+  <td class="right">${pr?pointBadge(pr.points):pointBadge(0)}</td>
 `;
       tbody.appendChild(tr);
     }
@@ -552,8 +672,9 @@ tr.innerHTML = `
       const mid = Number(btn.getAttribute("data-save"));
       const hInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="h"]`);
       const aInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="a"]`);
+      const advInput = tbody.querySelector(`select[data-mid="${mid}"][data-side="adv"]`);
 
-      [hInput, aInput].forEach(inp=>{
+      [hInput, aInput, advInput].forEach(inp=>{
         if (!inp) return;
         inp.addEventListener("input", ()=>{
           btn.classList.remove("saved");
@@ -570,12 +691,12 @@ tr.innerHTML = `
         const ph = Number(h), pa = Number(a);
         if (!Number.isFinite(ph) || !Number.isFinite(pa)) return setMsg($("predMsg"), false, "Sisesta numbrid.");
         try{
-          const resp = await call("predictions",{method:"POST", body: JSON.stringify({match_id: mid, pred_home: ph, pred_away: pa})});
+          const resp = await call("predictions",{method:"POST", body: JSON.stringify({match_id: mid, pred_home: ph, pred_away: pa, advancing_team: advInput ? advInput.value : null})});
           setMsg($("predMsg"), true, "Salvestatud.");
           btn.classList.add("saved");
           btn.textContent = "Salvestatud";
           if (rowEl && rowEl.lastElementChild && resp && resp.prediction) {
-            rowEl.lastElementChild.textContent = resp.prediction.points ?? 0;
+            rowEl.lastElementChild.innerHTML = pointBadge(resp.prediction.points ?? 0);
           }
           await loadLeaderboard();
           await loadOthersView();
@@ -591,32 +712,30 @@ tr.innerHTML = `
 
 
 async function loadLeaderboard(){
-  const tbody = $("lbTable").querySelector("tbody");
-  tbody.innerHTML = "";
+  const groupBody = $("lbGroupTable")?.querySelector("tbody");
+  const playoffBody = $("lbPlayoffTable")?.querySelector("tbody");
+  if (!groupBody || !playoffBody) return;
+  groupBody.innerHTML = "";
+  playoffBody.innerHTML = "";
   $("lbMsg").textContent = "";
   try{
     const r = await call("leaderboard",{method:"GET"});
-    const rows = r.leaderboard || [];
-    rows.forEach((row, idx)=>{
-      const tr = document.createElement("tr");
-      const isFirst = idx === 0;
-      const isLast = rows.length > 1 && idx === rows.length - 1;
-      const move = Number(row.movement || 0);
-      const moveHtml = move > 0
-        ? `<span class="rank-move rank-up">▲</span>`
-        : move < 0
-          ? `<span class="rank-move rank-down">▼</span>`
-          : "";
-      const crown = isFirst ? `<span class="rank-crown">👑</span>` : "";
-      const frog = isLast ? `<span class="rank-frog">🐸</span>` : "";
-
-      tr.innerHTML = `<td>${idx + 1}.</td><td>${row.display_name}${moveHtml}${crown}${frog}</td><td class="right">${row.points}</td>`;
-      tbody.appendChild(tr);
-    });
+    renderLeaderboardRows(groupBody, r.group || []);
+    renderLeaderboardRows(playoffBody, r.playoff || []);
   }catch(e){
     setMsg($("lbMsg"), false, e.message);
   }
 }
+function renderLeaderboardRows(tbody, rows){
+  rows.forEach((row, idx)=>{
+    const tr = document.createElement("tr");
+    const crown = idx === 0 ? `<span class="rank-crown">👑</span>` : "";
+    const frog = rows.length > 1 && idx === rows.length - 1 ? `<span class="rank-frog">🐸</span>` : "";
+    tr.innerHTML = `<td>${idx + 1}.</td><td>${row.display_name}${crown}${frog}</td><td class="right">${row.points}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
 
 
 
@@ -665,24 +784,7 @@ async function loadOthersView(){
 
 
 function boardColorClass(match, pr){
-  if (!match || !pr) return "";
-  const fh = Number(match.final_home);
-  const fa = Number(match.final_away);
-  const ph = Number(pr.pred_home);
-  const pa = Number(pr.pred_away);
-
-  if (![fh, fa, ph, pa].every(Number.isFinite)) return "color-red";
-
-  if (ph === fh && pa === fa) return "color-green";
-
-  const predictedOutcome = ph > pa ? 1 : ph < pa ? -1 : 0;
-  const finalOutcome = fh > fa ? 1 : fh < fa ? -1 : 0;
-
-  if (predictedOutcome === finalOutcome && ph === fh) return "color-blue";
-  if (predictedOutcome === finalOutcome) return "color-yellow";
-  if (pa === fa) return "color-orange";
-
-  return "color-red";
+  return "";
 }
 
 function buildOthersMatrix(thead, tbody, matches, players, predMap){
@@ -695,22 +797,16 @@ function buildOthersMatrix(thead, tbody, matches, players, predMap){
   }
 
   const top1 = document.createElement("tr");
-  top1.innerHTML = `<th class="sticky-col">Mängu nr</th>` + matches.map(m => `<th colspan="2">${m.match_no}</th>`).join("");
+  top1.innerHTML = `<th class="sticky-col">Mängu nr</th>` + matches.map(m => `<th>${m.match_no}</th>`).join("");
   thead.appendChild(top1);
 
-
-
   const top4 = document.createElement("tr");
-  top4.innerHTML = `<th class="sticky-col">Mäng</th>` + matches.map(m => `<th colspan="2" class="match-teams">${m.home} - ${m.away}</th>`).join("");
+  top4.innerHTML = `<th class="sticky-col">Mäng</th>` + matches.map(m => `<th class="match-teams">${fifaCode(m.home)} - ${fifaCode(m.away)}</th>`).join("");
   thead.appendChild(top4);
 
   const correct = document.createElement("tr");
   correct.className = "correct-row";
-  correct.innerHTML = `<th class="sticky-col">Õige tulemus</th>` + matches.map(m => {
-    const fh = m.final_home ?? "";
-    const fa = m.final_away ?? "";
-    return `<td>${fh}</td><td>${fa}</td>`;
-  }).join("");
+  correct.innerHTML = `<th class="sticky-col">Õige tulemus</th>` + matches.map(m => `<td>${m.final_home ?? ""}:${m.final_away ?? ""}${m.went_extra ? " AET/PEN" : ""}</td>`).join("");
   tbody.appendChild(correct);
 
   for (const player of players){
@@ -720,11 +816,10 @@ function buildOthersMatrix(thead, tbody, matches, players, predMap){
     for (const match of matches){
       const pr = predMap.get(`${player.id}:${match.id}`);
       if (!pr){
-        rowHtml += `<td></td><td></td>`;
+        rowHtml += `<td></td>`;
         continue;
       }
-      const cls = boardColorClass(match, pr);
-      rowHtml += `<td class="${cls}">${pr.pred_home ?? ""}</td><td class="${cls}">${pr.pred_away ?? ""}</td>`;
+      rowHtml += `<td><span class="predicted-score">${formatPrediction(match, pr)}</span>${pointBadge(pr.points)}</td>`;
     }
 
     tr.innerHTML = rowHtml;
@@ -735,12 +830,7 @@ function buildOthersMatrix(thead, tbody, matches, players, predMap){
 
 let screenshotMatrixData = null;
 
-function shortTeamName(name){
-  const s = String(name || "").trim();
-  if (!s) return "";
-  if (s.length <= 12) return s;
-  return s.split(/\s+/).map(x => x[0]).join("").toUpperCase().slice(0, 4) || s.slice(0, 4).toUpperCase();
-}
+function shortTeamName(name){ return fifaCode(name); }
 
 function formatShortDateTime(iso){
   if (!iso) return "";
@@ -750,34 +840,7 @@ function formatShortDateTime(iso){
   return `${date} ${time}`;
 }
 
-function screenshotScoreClass(match, pr){
-  if (!match || !pr) return "";
-
-  const fh = Number(match.final_home);
-  const fa = Number(match.final_away);
-  const ph = Number(pr.pred_home);
-  const pa = Number(pr.pred_away);
-
-  if (![fh, fa, ph, pa].every(Number.isFinite)) return "score-red";
-
-  // Roheline: täpne skoor
-  if (ph === fh && pa === fa) return "score-green";
-
-  const predictedOutcome = ph > pa ? 1 : ph < pa ? -1 : 0;
-  const finalOutcome = fh > fa ? 1 : fh < fa ? -1 : 0;
-
-  // Sinine: õige võitja + õige koduväravate arv
-  if (predictedOutcome === finalOutcome && ph === fh) return "score-blue";
-
-  // Kollane: õige võitja või õige viik
-  if (predictedOutcome === finalOutcome) return "score-yellow";
-
-  // Oranž: õige võõrsilväravate arv
-  if (pa === fa) return "score-orange";
-
-  // Punane: kõik vale
-  return "score-red";
-}
+function screenshotScoreClass(match, pr){ return ""; }
 
 function populateScreenshotMatchSelect(matches){
   const select = $("screenshotMatchSelect");
@@ -844,21 +907,20 @@ function renderScreenshotBoard(){
     }
 
     const rows = [];
-    rows.push(`<tr class="meta"><th></th>${matches.map(m => `<th colspan="2" class="game-title">${m.match_no}</th>`).join("")}</tr>`);
-    rows.push(`<tr class="meta"><th></th>${matches.map(m => `<th colspan="2">${formatShortDateTime(m.kickoff_utc)}</th>`).join("")}</tr>`);
-    rows.push(`<tr class="teams"><th></th>${matches.map(m => `<th class="team-cell">${shortTeamName(m.home)}</th><th class="team-cell">${shortTeamName(m.away)}</th>`).join("")}</tr>`);
-    rows.push(`<tr class="correct"><th>Õige tulemus</th>${matches.map(m => `<td>${m.final_home ?? ""}</td><td>${m.final_away ?? ""}</td>`).join("")}</tr>`);
+    rows.push(`<tr class="meta"><th></th>${matches.map(m => `<th class="game-title">${m.match_no}</th>`).join("")}</tr>`);
+    rows.push(`<tr class="meta"><th></th>${matches.map(m => `<th>${formatShortDateTime(m.kickoff_utc)}</th>`).join("")}</tr>`);
+    rows.push(`<tr class="teams"><th></th>${matches.map(m => `<th class="team-cell">${shortTeamName(m.home)}-${shortTeamName(m.away)}</th>`).join("")}</tr>`);
+    rows.push(`<tr class="correct"><th>Õige tulemus</th>${matches.map(m => `<td>${m.final_home ?? ""}:${m.final_away ?? ""}</td>`).join("")}</tr>`);
 
     for (const player of players){
       let row = `<tr><th>${player.display_name}</th>`;
       for (const match of matches){
         const pr = predMap.get(`${player.id}:${match.id}`);
         if (!pr){
-          row += `<td></td><td></td>`;
+          row += `<td></td>`;
           continue;
         }
-        const cls = screenshotScoreClass(match, pr);
-        row += `<td class="${cls}">${pr.pred_home ?? ""}</td><td class="${cls}">${pr.pred_away ?? ""}</td>`;
+        row += `<td>${formatPrediction(match, pr)} ${pointBadge(pr.points)}</td>`;
       }
       row += `</tr>`;
       rows.push(row);
@@ -876,19 +938,18 @@ function renderScreenshotBoard(){
   }
 
   const rows = [];
-  rows.push(`<tr class="meta"><th></th><th colspan="2">${match.match_no}</th></tr>`);
-  rows.push(`<tr class="meta"><th></th><th colspan="2">${formatShortDateTime(match.kickoff_utc)}</th></tr>`);
-  rows.push(`<tr class="teams"><th></th><th>${shortTeamName(match.home)}</th><th>${shortTeamName(match.away)}</th></tr>`);
-  rows.push(`<tr class="correct"><th>Õige tulemus</th><td>${match.final_home ?? ""}</td><td>${match.final_away ?? ""}</td></tr>`);
+  rows.push(`<tr class="meta"><th></th><th>${match.match_no}</th></tr>`);
+  rows.push(`<tr class="meta"><th></th><th>${formatShortDateTime(match.kickoff_utc)}</th></tr>`);
+  rows.push(`<tr class="teams"><th></th><th>${shortTeamName(match.home)}-${shortTeamName(match.away)}</th></tr>`);
+  rows.push(`<tr class="correct"><th>Õige tulemus</th><td>${match.final_home ?? ""}:${match.final_away ?? ""}</td></tr>`);
 
   for (const player of players){
     const pr = predMap.get(`${player.id}:${match.id}`);
     if (!pr) {
-      rows.push(`<tr><th>${player.display_name}</th><td></td><td></td></tr>`);
+      rows.push(`<tr><th>${player.display_name}</th><td></td></tr>`);
       continue;
     }
-    const cls = screenshotScoreClass(match, pr);
-    rows.push(`<tr><th>${player.display_name}</th><td class="${cls}">${pr.pred_home ?? ""}</td><td class="${cls}">${pr.pred_away ?? ""}</td></tr>`);
+    rows.push(`<tr><th>${player.display_name}</th><td>${formatPrediction(match, pr)} ${pointBadge(pr.points)}</td></tr>`);
   }
 
   tbody.innerHTML = rows.join("");
@@ -911,6 +972,134 @@ async function loadAdminScreenshotBoard(){
   }
 }
 
+
+async function loadRules(){
+  try{
+    const r = await call("rules", { method:"GET" });
+    if ($("rulesText")) $("rulesText").textContent = r.rules_text || "";
+    if ($("adminRulesText")) $("adminRulesText").value = r.rules_text || "";
+  }catch(e){
+    if ($("rulesMsg")) setMsg($("rulesMsg"), false, e.message);
+  }
+}
+
+function optionsForQuestion(q, data){
+  const opts = data?.options || {};
+  if (q.answer_type === "team") return opts.teams || [];
+  if (q.answer_type === "player") return opts.players || [];
+  if (q.answer_type === "number") return opts.numbers || [];
+  if (q.answer_type === "registered_user") return opts.registered_users || [];
+  return [];
+}
+
+async function loadBonus(){
+  const box = $("bonusQuestions");
+  if (!box || !token) return;
+  try{
+    bonusData = await call("bonus", { method:"GET" });
+    const answerMap = new Map((bonusData.answers || []).map(a => [Number(a.question_id), a]));
+    const rows = (bonusData.questions || []).map(q => {
+      const a = answerMap.get(Number(q.id));
+      const opts = optionsForQuestion(q, bonusData);
+      const input = q.answer_type === "text"
+        ? `<input data-bonus="${q.id}" value="${escapeHtml(a?.answer_text || "")}" placeholder="Vastus" ${q.is_locked ? "disabled" : ""}>`
+        : `<select data-bonus="${q.id}" ${q.is_locked ? "disabled" : ""}><option value="">Vali vastus</option>${optionList(opts, a?.answer_value || "")}</select>`;
+      return `<div class="answer-grid"><div><strong>${escapeHtml(q.question_text)}</strong><div class="mini">Tüüp: ${escapeHtml(q.answer_type)}${q.is_locked ? " · lukus" : ""}</div></div><div>${input}</div></div>`;
+    }).join("");
+    box.innerHTML = rows + `<div class="row" style="margin-top:14px"><button id="btnSaveBonus" class="primary" type="button">Salvesta lisaküsimused</button></div>`;
+    $("btnSaveBonus").onclick = saveBonusAnswers;
+  }catch(e){
+    setMsg($("bonusMsg"), false, e.message);
+  }
+}
+
+async function saveBonusAnswers(){
+  try{
+    const answers = [];
+    for (const q of bonusData.questions || []){
+      const el = document.querySelector(`[data-bonus="${q.id}"]`);
+      if (!el) continue;
+      const value = el.value;
+      const text = q.answer_type === "text" ? value : (el.selectedOptions?.[0]?.textContent || value);
+      if (value) answers.push({ question_id:q.id, answer_value:value, answer_text:text });
+    }
+    await call("bonus/answers", { method:"POST", body:JSON.stringify({ answers }) });
+    setMsg($("bonusMsg"), true, "Lisaküsimused salvestatud.");
+    await loadLeaderboard();
+  }catch(e){
+    setMsg($("bonusMsg"), false, e.message);
+  }
+}
+
+async function loadAdminBonus(){
+  if (!(me && me.is_admin)) return;
+  const box = $("adminBonusQuestions");
+  const tbody = $("bonusAnswersTable")?.querySelector("tbody");
+  if (!box || !tbody) return;
+  try{
+    adminBonusData = await call("admin/bonus", { method:"GET" });
+    box.innerHTML = (adminBonusData.questions || []).map(q => {
+      const opts = optionsForQuestion(q, adminBonusData);
+      const correctInput = q.answer_type === "text"
+        ? `<input data-bq-correct="${q.id}" value="${escapeHtml(q.correct_answer_text || q.correct_answer_value || "")}" placeholder="õige vastus">`
+        : `<select data-bq-correct="${q.id}"><option value="">Õige vastus puudub</option>${optionList(opts, q.correct_answer_value || "")}</select>`;
+      return `<div class="card" style="margin-top:8px"><div class="row"><input data-bq-text="${q.id}" value="${escapeHtml(q.question_text)}"><select data-bq-type="${q.id}"><option ${q.answer_type==="team"?"selected":""}>team</option><option ${q.answer_type==="player"?"selected":""}>player</option><option ${q.answer_type==="number"?"selected":""}>number</option><option ${q.answer_type==="registered_user"?"selected":""}>registered_user</option><option ${q.answer_type==="text"?"selected":""}>text</option></select><input class="small" data-bq-points="${q.id}" value="${q.points || 1}" placeholder="p"><label class="mini"><input type="checkbox" data-bq-lock="${q.id}" ${q.is_locked?"checked":""}> lukus</label>${correctInput}<button type="button" data-bq-save="${q.id}" class="primary">Salvesta</button><button type="button" data-bq-del="${q.id}">Kustuta</button></div></div>`;
+    }).join("");
+    tbody.innerHTML = (adminBonusData.answers || []).map(a => `<tr><td>${escapeHtml(a.players?.display_name || "")}</td><td>${escapeHtml(a.bonus_questions?.question_text || "")}</td><td>${escapeHtml(a.answer_text || a.answer_value || "")}</td><td>${a.is_correct ? "jah" : "ei"}</td><td class="right">${a.points || 0}</td><td><button data-ba-ok="${a.id}">Õige</button><button data-ba-bad="${a.id}">Vale</button></td></tr>`).join("");
+    box.querySelectorAll("button[data-bq-save]").forEach(btn => btn.onclick = () => saveAdminQuestion(btn.dataset.bqSave));
+    box.querySelectorAll("button[data-bq-del]").forEach(btn => btn.onclick = () => deleteAdminQuestion(btn.dataset.bqDel));
+    tbody.querySelectorAll("button[data-ba-ok]").forEach(btn => btn.onclick = () => setBonusAnswer(btn.dataset.baOk, true));
+    tbody.querySelectorAll("button[data-ba-bad]").forEach(btn => btn.onclick = () => setBonusAnswer(btn.dataset.baBad, false));
+    renderBonusScreenshot();
+  }catch(e){
+    setMsg($("adminBonusMsg"), false, e.message);
+  }
+}
+
+function sourceForType(type){
+  return type === "team" ? "teams" : type === "player" ? "players" : type === "number" ? "0_20" : type === "registered_user" ? "registered_users" : "text";
+}
+async function saveAdminQuestion(id){
+  try{
+    const type = document.querySelector(`[data-bq-type="${id}"]`).value;
+    const correctEl = document.querySelector(`[data-bq-correct="${id}"]`);
+    const correctValue = correctEl?.value || "";
+    const correctText = type === "text" ? correctValue : (correctEl?.selectedOptions?.[0]?.textContent || correctValue);
+    await call(`admin/bonus/questions/${id}`, { method:"PUT", body:JSON.stringify({ question_text:document.querySelector(`[data-bq-text="${id}"]`).value, answer_type:type, options_source:sourceForType(type), points:Number(document.querySelector(`[data-bq-points="${id}"]`).value || 1), is_locked:document.querySelector(`[data-bq-lock="${id}"]`).checked, correct_answer_value:correctValue || null, correct_answer_text:correctText || null }) });
+    setMsg($("adminBonusMsg"), true, "Küsimus salvestatud.");
+    await loadAdminBonus(); await loadBonus(); await loadLeaderboard();
+  }catch(e){ setMsg($("adminBonusMsg"), false, e.message); }
+}
+async function deleteAdminQuestion(id){
+  if (!confirm("Kustutan lisaküsimuse?")) return;
+  try{ await call(`admin/bonus/questions/${id}`, { method:"DELETE" }); await loadAdminBonus(); await loadBonus(); }
+  catch(e){ setMsg($("adminBonusMsg"), false, e.message); }
+}
+async function setBonusAnswer(id, ok){
+  try{ await call(`admin/bonus/answers/${id}`, { method:"PUT", body:JSON.stringify({ is_correct:ok, points:ok ? 1 : 0 }) }); await loadAdminBonus(); await loadLeaderboard(); }
+  catch(e){ setMsg($("adminBonusMsg"), false, e.message); }
+}
+
+function renderBonusScreenshot(){
+  const table = $("bonusScreenshotBoard");
+  if (!table || !adminBonusData) return;
+  const tbody = table.querySelector("tbody");
+  const questions = adminBonusData.questions || [];
+  const answers = adminBonusData.answers || [];
+  const players = new Map();
+  for (const a of answers){
+    const name = a.players?.display_name || "Mängija";
+    if (!players.has(name)) players.set(name, new Map());
+    players.get(name).set(Number(a.question_id), a);
+  }
+  const rows = [];
+  rows.push(`<tr class="meta"><th>Kasutaja</th>${questions.map((q,i)=>`<th title="${escapeHtml(q.question_text)}">K${i+1}</th>`).join("")}</tr>`);
+  rows.push(`<tr class="correct"><th>Õige vastus</th>${questions.map(q=>`<td>${escapeHtml(q.correct_answer_text || q.correct_answer_value || "")}</td>`).join("")}</tr>`);
+  for (const [name, map] of Array.from(players.entries()).sort((a,b)=>a[0].localeCompare(b[0], "et"))){
+    rows.push(`<tr><th>${escapeHtml(name)}</th>${questions.map(q=>`<td>${escapeHtml(map.get(Number(q.id))?.answer_text || "")}</td>`).join("")}</tr>`);
+  }
+  tbody.innerHTML = rows.join("");
+}
 async function loadPlayers(){
   const tbody = $("pTable").querySelector("tbody");
   tbody.innerHTML = "";
@@ -920,15 +1109,34 @@ async function loadPlayers(){
     for (const pl of r.players){
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${pl.username}</td>
-        <td>${pl.is_admin ? "jah" : "ei"}</td>
+        <td><input data-player-username="${pl.id}" value="${escapeHtml(pl.username)}"></td>
+        <td><input data-player-name="${pl.id}" value="${escapeHtml(pl.display_name || pl.username)}"></td>
+        <td><select data-player-admin="${pl.id}"><option value="false" ${pl.is_admin ? "" : "selected"}>ei</option><option value="true" ${pl.is_admin ? "selected" : ""}>jah</option></select></td>
         <td class="right">
+          <button data-save-player="${pl.id}">Salvesta</button>
           <button data-reset="${pl.id}">Uus parool</button>
           <button data-del="${pl.id}">Kustuta</button>
         </td>
       `;
       tbody.appendChild(tr);
     }
+
+    tbody.querySelectorAll("button[data-save-player]").forEach(b=>{
+      b.addEventListener("click", async ()=>{
+        const id = b.getAttribute("data-save-player");
+        try{
+          await call(`admin/players/${id}`,{method:"PUT", body: JSON.stringify({
+            username: document.querySelector(`[data-player-username="${id}"]`).value.trim(),
+            display_name: document.querySelector(`[data-player-name="${id}"]`).value.trim(),
+            is_admin: document.querySelector(`[data-player-admin="${id}"]`).value === "true"
+          })});
+          setMsg($("adminMsg"), true, "Mängija salvestatud.");
+          await loadPlayers();
+        }catch(e){
+          setMsg($("adminMsg"), false, e.message);
+        }
+      });
+    });
     tbody.querySelectorAll("button[data-reset]").forEach(b=>{
       b.addEventListener("click", async ()=>{
         const id = b.getAttribute("data-reset");
@@ -1199,7 +1407,8 @@ $("btnSetFinal").onclick = async ()=>{
     const fh = Number($("fh").value);
     const fa = Number($("fa").value);
     if (!matchNo || !Number.isFinite(fh) || !Number.isFinite(fa)) return setMsg($("adminMsg"), false, "Sisesta mängu # ja numbrid.");
-    await call(`admin/matches/by-no/${matchNo}`,{method:"PUT", body: JSON.stringify({final_home: fh, final_away: fa, is_finished: true})});
+    const status = $("resultStatus")?.value || "FT";
+    await call(`admin/matches/by-no/${matchNo}`,{method:"PUT", body: JSON.stringify({final_home: fh, final_away: fa, is_finished: true, status_short: status, went_extra: status === "AET" || status === "PEN", advancing_team: $("advancingTeam")?.value.trim() || null})});
     setMsg($("adminMsg"), true, "Tulemus salvestatud.");
     await loadMatchesAndPreds();
     await loadLeaderboard();
@@ -1216,7 +1425,7 @@ document.querySelectorAll(".tab").forEach(t=>{
     document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
     t.classList.add("active");
     const name = t.getAttribute("data-tab");
-    ["pred","lb","others","account","admin"].forEach(id=>{ const el=$(id); if (el) el.classList.add("hide"); });
+    ["pred","lb","bonus","others","rules","account","admin"].forEach(id=>{ const el=$(id); if (el) el.classList.add("hide"); });
     const target = $(name); if (target) target.classList.remove("hide");
     updateImportTimesVisibility(name);
   });
@@ -1227,6 +1436,27 @@ if ($("screenshotMatchSelect")) $("screenshotMatchSelect").addEventListener("cha
 if ($("screenshotMode")) $("screenshotMode").addEventListener("change", renderScreenshotBoard);
 if ($("screenshotCount")) $("screenshotCount").addEventListener("input", renderScreenshotBoard);
 if ($("btnRefreshScreenshotBoard")) $("btnRefreshScreenshotBoard").onclick = loadAdminScreenshotBoard;
+if ($("btnRefreshBonusScreenshot")) $("btnRefreshBonusScreenshot").onclick = async ()=>{ await loadAdminBonus(); renderBonusScreenshot(); };
+if ($("btnSaveRules")) $("btnSaveRules").onclick = async ()=>{
+  try{
+    await call("admin/rules", { method:"PUT", body:JSON.stringify({ rules_text:$("adminRulesText").value }) });
+    setMsg($("adminRulesMsg"), true, "Reeglid salvestatud.");
+    await loadRules();
+  }catch(e){ setMsg($("adminRulesMsg"), false, e.message); }
+};
+if ($("btnAddBonusQuestion")) $("btnAddBonusQuestion").onclick = async ()=>{
+  try{
+    const type = $("newBonusType").value;
+    await call("admin/bonus/questions", { method:"POST", body:JSON.stringify({ question_text:$("newBonusText").value, answer_type:type, options_source:sourceForType(type), points:1 }) });
+    $("newBonusText").value = "";
+    setMsg($("adminBonusMsg"), true, "Lisaküsimus lisatud.");
+    await loadAdminBonus(); await loadBonus();
+  }catch(e){ setMsg($("adminBonusMsg"), false, e.message); }
+};
+if ($("btnRecalcBonus")) $("btnRecalcBonus").onclick = async ()=>{
+  try{ const r = await call("admin/bonus/recalculate", { method:"POST" }); setMsg($("adminBonusMsg"), true, `Ümber arvutatud: ${r.updated}`); await loadAdminBonus(); await loadLeaderboard(); }
+  catch(e){ setMsg($("adminBonusMsg"), false, e.message); }
+};
 
 loadAll();
 </script>
