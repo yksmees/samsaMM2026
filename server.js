@@ -207,7 +207,29 @@ const DEFAULT_BONUS_QUESTIONS = [
   { question_text:"Kes jääb meie alagrupiturniiri ennustuses viimaseks?", answer_type:"registered_user", options_source:"registered_users", points:1, sort_order:6 }
 ];
 const DEFAULT_PLAYER_OPTIONS = [
-  "Lionel Messi", "Cristiano Ronaldo", "Kylian Mbappé", "Erling Haaland", "Harry Kane", "Vinícius Júnior", "Jude Bellingham", "Lamine Yamal", "Jamal Musiala", "Neymar", "Robert Lewandowski", "Mohamed Salah", "Lautaro Martínez", "Julián Álvarez", "Raphinha", "Bukayo Saka", "Phil Foden", "Florian Wirtz", "Kai Havertz", "Bruno Fernandes"
+  "Lionel Messi", "Lautaro Martínez", "Julián Álvarez", "Enzo Fernández", "Ángel Di María", "Paulo Dybala",
+  "Cristiano Ronaldo", "Bruno Fernandes", "Rafael Leão", "João Félix", "Bernardo Silva", "Gonçalo Ramos",
+  "Kylian Mbappé", "Antoine Griezmann", "Ousmane Dembélé", "Marcus Thuram", "Olivier Giroud", "Eduardo Camavinga",
+  "Harry Kane", "Jude Bellingham", "Bukayo Saka", "Phil Foden", "Cole Palmer", "Marcus Rashford", "Declan Rice",
+  "Vinícius Júnior", "Rodrygo", "Raphinha", "Neymar", "Endrick", "Richarlison", "Gabriel Martinelli",
+  "Jamal Musiala", "Florian Wirtz", "Kai Havertz", "Leroy Sané", "Serge Gnabry", "Niclas Füllkrug",
+  "Lamine Yamal", "Álvaro Morata", "Pedri", "Gavi", "Nico Williams", "Dani Olmo", "Ferran Torres",
+  "Erling Haaland", "Martin Ødegaard", "Alexander Sørloth",
+  "Robert Lewandowski", "Piotr Zieliński",
+  "Kevin De Bruyne", "Romelu Lukaku", "Jeremy Doku", "Leandro Trossard",
+  "Cody Gakpo", "Memphis Depay", "Xavi Simons", "Denzel Dumfries",
+  "Christian Pulisic", "Gio Reyna", "Folarin Balogun", "Timothy Weah",
+  "Jonathan David", "Alphonso Davies", "Cyle Larin",
+  "Santiago Giménez", "Hirving Lozano", "Raúl Jiménez",
+  "Son Heung-min", "Lee Kang-in", "Hwang Hee-chan",
+  "Takefusa Kubo", "Kaoru Mitoma", "Takumi Minamino",
+  "Mehdi Taremi", "Sardar Azmoun",
+  "Mohamed Salah", "Mostafa Mohamed",
+  "Achraf Hakimi", "Hakim Ziyech", "Youssef En-Nesyri",
+  "Sadio Mané", "Nicolas Jackson",
+  "Darwin Núñez", "Federico Valverde", "Luis Suárez",
+  "Luis Díaz", "James Rodríguez",
+  "Khvicha Kvaratskhelia", "Victor Osimhen", "Mohammed Kudus"
 ];
 const DEFAULT_RULES_TEXT = `Samsung JalkaMM 2026 ennustuses ennustad iga mängu 90 minuti skoori. Ennustus lukustub 1 tund enne mängu algust. Kui mäng on lukus, muutuvad teiste mängijate ennustused nähtavaks.
 
@@ -991,11 +1013,23 @@ async function getAppSetting(sb, key, fallback="") {
 async function setAppSetting(sb, key, value) {
   return sb.from("app_settings").upsert({ key, value:String(value ?? "") }, { onConflict:"key" });
 }
+function isRealCountryOption(name){
+  const s = String(name || "").trim();
+  if (!s) return false;
+  if (/^[123][A-L](?:[A-L]+)?$/i.test(s)) return false;
+  if (/^[WL]\d+$/i.test(s)) return false;
+  if (/^3[A-L]+$/i.test(s)) return false;
+  return true;
+}
+
 async function buildBonusOptions(sb){
   const matches = await sb.from("matches").select("home,away");
   const users = await sb.from("players").select("id,display_name,is_admin").order("display_name", { ascending:true });
   const teams = new Set();
-  for (const m of matches.data || []) { if (m.home) teams.add(m.home); if (m.away) teams.add(m.away); }
+  for (const m of matches.data || []) {
+    if (isRealCountryOption(m.home)) teams.add(m.home);
+    if (isRealCountryOption(m.away)) teams.add(m.away);
+  }
   return {
     teams: Array.from(teams).sort((a,b)=>a.localeCompare(b,"et")).map(x=>({ value:x, label:x })),
     players: DEFAULT_PLAYER_OPTIONS.map(x=>({ value:x, label:x })),
@@ -1172,22 +1206,30 @@ if (event.httpMethod === "GET" && route === "leaderboard") {
 
   function makeRows(type) {
     const map = new Map();
-    for (const p of allPlayers) map.set(p.id, { player_id:p.id, display_name:p.display_name, points:0 });
+    for (const p of allPlayers) map.set(p.id, { player_id:p.id, display_name:p.display_name, points:0, playoff_points:0, bonus_points:0 });
 
     for (const pr of allPreds) {
       const m = matchMap.get(pr.match_id);
       if (!m) continue;
       const isGroup = Number(m.match_no) <= 72;
-      const include = type === "group" ? isGroup : !isGroup;
-      if (!include) continue;
       const row = map.get(pr.player_id);
-      if (row) row.points += Number(pr.points || 0);
+      if (!row) continue;
+      if (type === "group" && isGroup) {
+        row.points += Number(pr.points || 0);
+      }
+      if (type === "playoff" && !isGroup) {
+        row.playoff_points += Number(pr.points || 0);
+        row.points += Number(pr.points || 0);
+      }
     }
 
     if (type === "playoff") {
       for (const ba of bonusRows) {
         const row = map.get(ba.player_id);
-        if (row) row.points += Number(ba.points || 0);
+        if (row) {
+          row.bonus_points += Number(ba.points || 0);
+          row.points += Number(ba.points || 0);
+        }
       }
     }
 

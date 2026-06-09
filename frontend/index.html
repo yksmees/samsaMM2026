@@ -287,6 +287,54 @@
       .points-help-row{font-size:11px}
     }
 
+    .search-choice{width:100%;min-width:0;box-sizing:border-box}
+    #lb table{table-layout:auto}
+    #lb td,#lb th{white-space:nowrap}
+    #lb td:nth-child(2){white-space:normal}
+    @media(max-width:760px){
+      body{overflow-x:hidden}
+      header{padding:16px 10px 8px}
+      .wrap{padding:8px 10px 22px}
+      .headerbar{align-items:flex-start}
+      .brand{gap:8px}
+      .brand h1{font-size:20px;line-height:1.1}
+      .logo{width:150px;max-width:42vw}
+      .header-user{margin-left:auto;gap:6px}
+      .header-user .pill{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      input,select,button{min-width:0;max-width:100%;box-sizing:border-box}
+      .row{gap:8px}
+      .tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+      .tab{width:100%;padding:8px 6px;font-size:12px}
+      #mTable.prediction-table{width:100%;min-width:0;border-spacing:0}
+      #mTable.prediction-table thead{display:none}
+      #mTable.prediction-table tbody,#mTable.prediction-table tr,#mTable.prediction-table td{display:block;width:100%;box-sizing:border-box}
+      #mTable.prediction-table tr{margin:8px 0;border:1px solid rgba(148,163,184,.20);border-radius:14px;overflow:hidden;background:rgba(15,23,42,.44)}
+      #mTable.prediction-table td{border-right:0;border-bottom:1px solid rgba(148,163,184,.12);padding:7px 9px;text-align:left!important;max-width:none!important}
+      #mTable.prediction-table td:last-child{border-bottom:0}
+      #mTable.prediction-table td::before{display:block;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}
+      #mTable.prediction-table td:nth-child(1)::before{content:'Nr'}
+      #mTable.prediction-table td:nth-child(2)::before{content:'Etapp'}
+      #mTable.prediction-table td:nth-child(3)::before{content:'Kellaaeg'}
+      #mTable.prediction-table td:nth-child(4)::before{content:'Kodu'}
+      #mTable.prediction-table td:nth-child(5)::before{content:'Võõrsil'}
+      #mTable.prediction-table td:nth-child(6)::before{content:'Sinu ennustus'}
+      #mTable.prediction-table td:nth-child(7)::before{content:'Punktid'}
+      #mTable.prediction-table .pred-cell{width:100%;min-width:0;max-width:none}
+      #mTable.prediction-table .pred-controls{display:grid;grid-template-columns:44px 44px 1fr;align-items:center;justify-content:start;gap:6px}
+      #mTable.prediction-table .pred-controls input.small{width:44px;min-width:44px;padding:7px 4px;font-size:14px}
+      #mTable.prediction-table .pred-controls button{width:100%;font-size:12px;padding:8px 6px}
+      #mTable.prediction-table .tie-adv-wrap{grid-column:1 / -1;max-width:100%;padding:7px}
+      #mTable.prediction-table .adv-choice-list{grid-template-columns:1fr 1fr}
+      .prediction-table-wrap{overflow-x:visible}
+      #lb .grid.cols2{display:block}
+      #lb .grid.cols2 .card{margin-top:10px;overflow-x:auto}
+      #lb table{min-width:0;width:100%;font-size:12px}
+      #lb th,#lb td{padding:7px 5px;font-size:12px}
+      #lbPlayoffTable th,#lbPlayoffTable td{font-size:11px}
+      .answer-grid{grid-template-columns:1fr!important}
+      .answer-grid input{width:100%}
+    }
+
   </style>
 </head>
 <body>
@@ -319,7 +367,6 @@
           <input id="u" placeholder="kasutaja" />
           <input id="p" placeholder="parool" type="password" />
           <button type="button" class="primary" id="btnLogin">Logi sisse</button>
-          <button type="button" id="btnLogout">Logi välja</button>
         </div>
 
 <details style="margin-top:10px">
@@ -382,7 +429,6 @@
       <div id="lb" class="hide" style="margin-top:8px">
         <div class="sub">Samsungi versioonis on kaks eraldi arvestust. Play-off algab nullist ning lisaküsimuste punktid lisatakse play-off edetabelisse.</div>
         <div id="lbMsg" class="msg"></div>
-        <div id="lbPointsHelp"></div>
         <div class="grid cols2" style="margin-top:10px">
           <div class="card">
             <strong>Alagrupimängude edetabel</strong>
@@ -393,9 +439,9 @@
           </div>
           <div class="card">
             <strong>Play-off edetabel</strong>
-            <div class="mini">Sisaldab play-off mängude punkte ja lisaküsimuste punkte.</div>
+            <div class="mini">Play-off mängude punktid ja lisaküsimuste punktid on eraldi näha. Kokku veerg määrab koha.</div>
             <table id="lbPlayoffTable">
-              <thead><tr><th>Koht</th><th>Mängija</th><th class="right">Punktid</th></tr></thead>
+              <thead><tr><th>Koht</th><th>Mängija</th><th class="right">Play-off</th><th class="right">Lisaküsimused</th><th class="right">Kokku</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -669,7 +715,14 @@ function setMsg(el, ok, text){
 }
 
 function setWho(){
-  const label = me ? `${me.display_name} (${me.username})${me.is_admin ? " admin" : ""}` : "väljas";
+  let label = "väljas";
+  if (me){
+    const display = String(me.display_name || "").trim();
+    const username = String(me.username || "").trim();
+    label = display || username || "sisse logitud";
+    if (username && username.toLowerCase() !== label.toLowerCase()) label += ` (${username})`;
+    if (me.is_admin && label.toLowerCase() !== "admin") label += " · admin";
+  }
   if ($("who")) $("who").textContent = label;
   if ($("headerWho")) $("headerWho").textContent = label;
   if ($("headerUserBox")) $("headerUserBox").classList.toggle("hide", !me);
@@ -734,6 +787,21 @@ function formatPrediction(match, pr){
 }
 function optionList(options, selected=""){
   return (options || []).map(o => `<option value="${escapeHtml(o.value)}" ${String(o.value)===String(selected)?"selected":""}>${escapeHtml(o.label)}</option>`).join("");
+}
+function dataListOptions(options){
+  return (options || []).map(o => `<option value="${escapeHtml(o.label)}"></option>`).join("");
+}
+function searchableInputHtml(kind, id, options, currentValue="", currentText="", placeholder="Vali vastus", disabled=false){
+  const listId = `${kind}_${id}_list`;
+  const text = currentText || ((options || []).find(o => String(o.value) === String(currentValue))?.label || currentValue || "");
+  return `<input class="search-choice" list="${listId}" data-${kind}="${id}" value="${escapeHtml(text)}" placeholder="${escapeHtml(placeholder)}" ${disabled ? "disabled" : ""}><datalist id="${listId}">${dataListOptions(options)}</datalist>`;
+}
+function resolveChoice(options, typed){
+  const raw = String(typed || "").trim();
+  if (!raw) return { value:"", text:"" };
+  const exact = (options || []).find(o => String(o.label).toLowerCase() === raw.toLowerCase() || String(o.value).toLowerCase() === raw.toLowerCase());
+  if (exact) return { value:String(exact.value), text:String(exact.label) };
+  return null;
 }
 function escapeHtml(v){ return String(v ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch] || ch)); }
 
@@ -949,20 +1017,23 @@ async function loadLeaderboard(){
   playoffBody.innerHTML = "";
   $("lbMsg").textContent = "";
   try{
-    if ($('lbPointsHelp')) $('lbPointsHelp').innerHTML = pointsHelp();
     const r = await call("leaderboard",{method:"GET"});
-    renderLeaderboardRows(groupBody, r.group || []);
-    renderLeaderboardRows(playoffBody, r.playoff || []);
+    renderLeaderboardRows(groupBody, r.group || [], "group");
+    renderLeaderboardRows(playoffBody, r.playoff || [], "playoff");
   }catch(e){
     setMsg($("lbMsg"), false, e.message);
   }
 }
-function renderLeaderboardRows(tbody, rows){
+function renderLeaderboardRows(tbody, rows, type="group"){
   rows.forEach((row, idx)=>{
     const tr = document.createElement("tr");
     const crown = idx === 0 ? `<span class="rank-crown">👑</span>` : "";
     const frog = rows.length > 1 && idx === rows.length - 1 ? `<span class="rank-frog">🐸</span>` : "";
-    tr.innerHTML = `<td>${idx + 1}.</td><td>${row.display_name}${crown}${frog}</td><td class="right">${row.points}</td>`;
+    if (type === "playoff") {
+      tr.innerHTML = `<td>${idx + 1}.</td><td>${escapeHtml(row.display_name)}${crown}${frog}</td><td class="right">${Number(row.playoff_points || 0)}</td><td class="right">${Number(row.bonus_points || 0)}</td><td class="right"><strong>${Number(row.points || 0)}</strong></td>`;
+    } else {
+      tr.innerHTML = `<td>${idx + 1}.</td><td>${escapeHtml(row.display_name)}${crown}${frog}</td><td class="right">${Number(row.points || 0)}</td>`;
+    }
     tbody.appendChild(tr);
   });
 }
@@ -1239,7 +1310,7 @@ async function loadBonus(){
       const opts = optionsForQuestion(q, bonusData);
       const input = q.answer_type === "text"
         ? `<input data-bonus="${q.id}" value="${escapeHtml(a?.answer_text || "")}" placeholder="Vastus" ${q.is_locked ? "disabled" : ""}>`
-        : `<select data-bonus="${q.id}" ${q.is_locked ? "disabled" : ""}><option value="">Vali vastus</option>${optionList(opts, a?.answer_value || "")}</select>`;
+        : searchableInputHtml("bonus", q.id, opts, a?.answer_value || "", a?.answer_text || "", q.answer_type === "player" ? "Kirjuta nimi" : "Kirjuta ja vali", q.is_locked);
       return `<div class="answer-grid"><div><strong>${escapeHtml(q.question_text)}</strong><div class="mini">Tüüp: ${escapeHtml(q.answer_type)}${q.is_locked ? " · lukus" : ""}</div></div><div>${input}</div></div>`;
     }).join("");
     box.innerHTML = rows + `<div class="row" style="margin-top:14px"><button id="btnSaveBonus" class="primary" type="button">Salvesta lisaküsimused</button></div>`;
@@ -1255,8 +1326,15 @@ async function saveBonusAnswers(){
     for (const q of bonusData.questions || []){
       const el = document.querySelector(`[data-bonus="${q.id}"]`);
       if (!el) continue;
-      const value = el.value;
-      const text = q.answer_type === "text" ? value : (el.selectedOptions?.[0]?.textContent || value);
+      const typed = el.value;
+      let value = typed;
+      let text = typed;
+      if (q.answer_type !== "text") {
+        const choice = resolveChoice(optionsForQuestion(q, bonusData), typed);
+        if (!choice) throw new Error(`Vali küsimusele "${q.question_text}" vastus nimekirjast.`);
+        value = choice.value;
+        text = choice.text;
+      }
       if (value) answers.push({ question_id:q.id, answer_value:value, answer_text:text });
     }
     await call("bonus/answers", { method:"POST", body:JSON.stringify({ answers }) });
@@ -1278,7 +1356,7 @@ async function loadAdminBonus(){
       const opts = optionsForQuestion(q, adminBonusData);
       const correctInput = q.answer_type === "text"
         ? `<input data-bq-correct="${q.id}" value="${escapeHtml(q.correct_answer_text || q.correct_answer_value || "")}" placeholder="õige vastus">`
-        : `<select data-bq-correct="${q.id}"><option value="">Õige vastus puudub</option>${optionList(opts, q.correct_answer_value || "")}</select>`;
+        : searchableInputHtml("bq-correct", q.id, opts, q.correct_answer_value || "", q.correct_answer_text || "", "Kirjuta ja vali õige vastus");
       return `<div class="card" style="margin-top:8px"><div class="row"><input data-bq-text="${q.id}" value="${escapeHtml(q.question_text)}"><select data-bq-type="${q.id}"><option ${q.answer_type==="team"?"selected":""}>team</option><option ${q.answer_type==="player"?"selected":""}>player</option><option ${q.answer_type==="number"?"selected":""}>number</option><option ${q.answer_type==="registered_user"?"selected":""}>registered_user</option><option ${q.answer_type==="text"?"selected":""}>text</option></select><input class="small" data-bq-points="${q.id}" value="${q.points || 1}" placeholder="p"><label class="mini"><input type="checkbox" data-bq-lock="${q.id}" ${q.is_locked?"checked":""}> lukus</label>${correctInput}<button type="button" data-bq-save="${q.id}" class="primary">Salvesta</button><button type="button" data-bq-del="${q.id}">Kustuta</button></div></div>`;
     }).join("");
     tbody.innerHTML = (adminBonusData.answers || []).map(a => `<tr><td>${escapeHtml(a.players?.display_name || "")}</td><td>${escapeHtml(a.bonus_questions?.question_text || "")}</td><td>${escapeHtml(a.answer_text || a.answer_value || "")}</td><td>${a.is_correct ? "jah" : "ei"}</td><td class="right">${a.points || 0}</td><td><button data-ba-ok="${a.id}">Õige</button><button data-ba-bad="${a.id}">Vale</button></td></tr>`).join("");
@@ -1299,8 +1377,15 @@ async function saveAdminQuestion(id){
   try{
     const type = document.querySelector(`[data-bq-type="${id}"]`).value;
     const correctEl = document.querySelector(`[data-bq-correct="${id}"]`);
-    const correctValue = correctEl?.value || "";
-    const correctText = type === "text" ? correctValue : (correctEl?.selectedOptions?.[0]?.textContent || correctValue);
+    let correctValue = correctEl?.value || "";
+    let correctText = correctValue;
+    if (type !== "text" && correctValue) {
+      const pseudoQuestion = { answer_type:type };
+      const choice = resolveChoice(optionsForQuestion(pseudoQuestion, adminBonusData), correctValue);
+      if (!choice) throw new Error("Vali õige vastus nimekirjast.");
+      correctValue = choice.value;
+      correctText = choice.text;
+    }
     await call(`admin/bonus/questions/${id}`, { method:"PUT", body:JSON.stringify({ question_text:document.querySelector(`[data-bq-text="${id}"]`).value, answer_type:type, options_source:sourceForType(type), points:Number(document.querySelector(`[data-bq-points="${id}"]`).value || 1), is_locked:document.querySelector(`[data-bq-lock="${id}"]`).checked, correct_answer_value:correctValue || null, correct_answer_text:correctText || null }) });
     setMsg($("adminBonusMsg"), true, "Küsimus salvestatud.");
     await loadAdminBonus(); await loadBonus(); await loadLeaderboard();
@@ -1460,7 +1545,7 @@ async function doLogout(){
   await loadAll();
 }
 
-$("btnLogout").onclick = doLogout;
+if ($("btnLogout")) $("btnLogout").onclick = doLogout;
 if ($("btnLogoutTop")) $("btnLogoutTop").onclick = doLogout;
 
 $("btnPass").onclick = async ()=>{
