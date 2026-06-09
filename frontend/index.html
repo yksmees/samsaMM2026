@@ -103,14 +103,13 @@
     @media(max-width:720px){.answer-grid{grid-template-columns:1fr}.pred-controls{display:flex;flex-wrap:wrap}.pred-controls select{min-width:140px}}
 
 
-    /* Samsung prediction table UI */
+    /* Samsung compact prediction table UI */
     .prediction-panel,
     .others-panel{
-      background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.028));
-      border:1px solid rgba(148,163,184,.22);
-      border-radius:18px;
-      padding:14px;
-      box-shadow:0 14px 34px rgba(0,0,0,.22);
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(148,163,184,.18);
+      border-radius:16px;
+      padding:12px;
     }
     .prediction-table-wrap,
     .others-board-wrap{
@@ -118,161 +117,104 @@
       max-width:100%;
       overflow-x:auto;
       -webkit-overflow-scrolling:touch;
-      border:1px solid rgba(148,163,184,.22);
-      border-radius:14px;
-      background:rgba(3,7,18,.28);
+      border:1px solid rgba(148,163,184,.18);
+      border-radius:12px;
+      background:rgba(3,7,18,.18);
       margin-top:10px;
     }
     .prediction-table,
     .others-board-table{
-      width:max-content;
-      min-width:100%;
+      width:100%;
+      min-width:0;
       border-collapse:separate;
       border-spacing:0;
       margin-top:0;
+      table-layout:auto;
     }
     .prediction-table th,
     .prediction-table td,
     .others-board-table th,
     .others-board-table td{
-      padding:8px 8px;
-      border-bottom:1px solid rgba(148,163,184,.16);
-      border-right:1px solid rgba(148,163,184,.12);
+      padding:6px 6px;
+      border-bottom:1px solid rgba(148,163,184,.14);
+      border-right:1px solid rgba(148,163,184,.10);
       vertical-align:middle;
     }
     .prediction-table th,
     .others-board-table th{
-      background:rgba(15,23,42,.96);
+      background:rgba(15,23,42,.92);
       color:#f8fafc;
       font-weight:900;
     }
-    .prediction-table tbody td{
-      background:rgba(15,23,42,.62);
-      color:#e5e7eb;
-    }
-    .prediction-table tbody tr:hover td{
-      background:rgba(30,41,59,.70);
-    }
-    .prediction-table .pred-cell{
-      min-width:250px;
-    }
+    .prediction-table th:nth-child(1),
+    .prediction-table td:nth-child(1){width:44px;white-space:nowrap;text-align:center}
+    .prediction-table th:nth-child(2),
+    .prediction-table td:nth-child(2){width:66px;white-space:nowrap;text-align:center}
+    .prediction-table th:nth-child(3),
+    .prediction-table td:nth-child(3){width:104px;white-space:nowrap;text-align:center}
+    .prediction-table th:nth-child(4),
+    .prediction-table th:nth-child(5),
+    .prediction-table td:nth-child(4),
+    .prediction-table td:nth-child(5){max-width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .prediction-table th:nth-child(6),
+    .prediction-table td:nth-child(6){width:132px;white-space:nowrap;text-align:center}
+    .prediction-table th:nth-child(7),
+    .prediction-table td:nth-child(7){width:58px;text-align:center}
+    .prediction-table .match-time{font-size:11px;color:#cbd5e1;font-weight:850}
+    .prediction-table tbody td{background:rgba(15,23,42,.48);color:#e5e7eb}
+    .prediction-table tbody tr:hover td{background:rgba(30,41,59,.58)}
+    .prediction-table .pred-cell{width:138px;min-width:138px;max-width:148px}
+    .prediction-table .pred-controls{display:grid;grid-template-columns:38px 38px;gap:5px;align-items:center;justify-content:center}
     .prediction-table .pred-controls input.small{
-      width:54px;
-      min-width:54px;
+      width:38px;
+      min-width:38px;
+      padding:7px 5px;
       text-align:center;
       font-weight:900;
     }
     .prediction-table .pred-controls select{
-      min-width:160px;
+      grid-column:1 / -1;
+      width:100%;
+      min-width:0;
+      font-size:12px;
+      padding:7px 6px;
     }
+    .prediction-table .pred-controls button{
+      grid-column:1 / -1;
+      width:100%;
+      padding:7px 6px;
+      font-size:12px;
+    }
+    .prediction-table .pred-cell .mini{margin-top:4px;text-align:center}
+    .others-board-table{width:max-content;min-width:100%}
     .others-board-table .sticky-col{
       position:sticky;
       left:0;
       z-index:3;
-      min-width:112px;
-      max-width:136px;
+      min-width:92px;
+      max-width:105px;
       background:rgba(15,23,42,.98);
-      box-shadow:8px 0 16px rgba(0,0,0,.24);
+      box-shadow:6px 0 12px rgba(0,0,0,.22);
       text-align:left;
       font-weight:950;
-    }
-    .others-board-table tbody .sticky-col{
-      background:rgba(17,26,51,.98);
-      z-index:2;
-    }
-    .others-match-head{
-      min-width:110px;
-      max-width:130px;
-      text-align:center;
-      white-space:normal;
-    }
-    .others-head-teams{
-      display:grid;
-      gap:2px;
-      line-height:1.12;
-      font-size:12px;
-      font-weight:900;
-      margin-top:3px;
-    }
-    .others-team-line{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:4px;
-      min-width:0;
-    }
-    .others-team-name{
       overflow:hidden;
       text-overflow:ellipsis;
-      white-space:nowrap;
-      max-width:82px;
     }
-    .others-advance-marker{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:17px;
-      height:17px;
-      border-radius:999px;
-      background:#16a34a;
-      color:#fff;
-      font-weight:950;
-      font-size:13px;
-      line-height:1;
-    }
+    .others-board-table tbody .sticky-col{background:rgba(17,26,51,.98);z-index:2}
+    .others-match-head{min-width:94px;max-width:104px;text-align:center;white-space:normal}
+    .others-head-teams{display:grid;gap:1px;line-height:1.08;font-size:11px;font-weight:900;margin-top:2px}
+    .others-team-line{display:flex;align-items:center;justify-content:center;gap:3px;min-width:0}
+    .others-team-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:64px}
+    .others-advance-marker{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:999px;background:#16a34a;color:#fff;font-weight:950;font-size:12px;line-height:1}
     .matrix-final-score,
-    .matrix-lock-note{
-      display:inline-flex;
-      margin-top:5px;
-      padding:3px 7px;
-      border-radius:999px;
-      font-weight:900;
-      white-space:nowrap;
-      font-size:11px;
-    }
-    .matrix-final-score{
-      background:rgba(255,255,255,.12);
-      color:#fff;
-    }
-    .matrix-lock-note{
-      background:rgba(250,204,21,.20);
-      color:#fde68a;
-    }
-    .others-pred-cell{
-      min-width:110px;
-      max-width:130px;
-      background:rgba(15,23,42,.88);
-      color:#e5e7eb;
-      font-weight:900;
-      text-align:center;
-    }
-    .others-pred-wrap{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:5px;
-      flex-wrap:wrap;
-    }
-    .others-pred-score{
-      white-space:nowrap;
-      font-weight:950;
-      color:#f8fafc;
-    }
+    .matrix-lock-note{display:inline-flex;margin-top:4px;padding:2px 6px;border-radius:999px;font-weight:900;white-space:nowrap;font-size:10px}
+    .matrix-final-score{background:rgba(255,255,255,.12);color:#fff}
+    .matrix-lock-note{background:rgba(250,204,21,.18);color:#fde68a}
+    .others-pred-cell{min-width:94px;max-width:104px;background:rgba(15,23,42,.82);color:#e5e7eb;font-weight:900;text-align:center}
+    .others-pred-wrap{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap}
+    .others-pred-score{white-space:nowrap;font-weight:950;color:#f8fafc}
     .others-points-badge,
-    .points-badge{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:4px;
-      min-width:34px;
-      border-radius:999px;
-      padding:4px 8px;
-      border:1px solid rgba(148,163,184,.25);
-      font-weight:950;
-      font-size:11px;
-      white-space:nowrap;
-      line-height:1;
-    }
+    .points-badge{display:inline-flex;align-items:center;justify-content:center;min-width:30px;border-radius:999px;padding:3px 7px;border:1px solid rgba(148,163,184,.22);font-weight:950;font-size:10px;white-space:nowrap;line-height:1}
     .others-points-badge.points-5,
     .points-badge.points-5{background:#bbf7d0;color:#052e16;border-color:#86efac}
     .others-points-badge.points-4,
@@ -285,21 +227,22 @@
     .points-badge.points-1{background:#f97316;color:#431407;border-color:#fdba74}
     .others-points-badge.points-0,
     .points-badge.points-0{background:#991b1b;color:#fee2e2;border-color:#fca5a5}
-    .others-no-pred{
-      color:#64748b;
-      font-weight:900;
-    }
+    .others-no-pred{color:#64748b;font-weight:900}
     .score-pill.p5{background:#bbf7d0;color:#052e16}.score-pill.p4{background:#166534;color:#dcfce7}.score-pill.p3{background:#1d4ed8;color:#dbeafe}.score-pill.p2{background:#facc15;color:#422006}.score-pill.p1{background:#f97316;color:#431407}.score-pill.p0{background:#991b1b;color:#fee2e2}
     @media(max-width:760px){
-      .prediction-panel,
-      .others-panel{padding:10px}
-      .others-board-table .sticky-col{min-width:92px;max-width:92px}
-      .others-match-head,
-      .others-pred-cell{min-width:104px;max-width:104px}
-      .others-team-name{max-width:70px}
-      .prediction-table .pred-cell{min-width:220px}
-      .prediction-table .pred-controls{gap:6px}
-      .prediction-table .pred-controls select{min-width:140px}
+      .prediction-panel,.others-panel{padding:8px}
+      .prediction-table th,.prediction-table td,.others-board-table th,.others-board-table td{padding:5px 4px;font-size:12px}
+      .prediction-table th:nth-child(1),.prediction-table td:nth-child(1){width:36px}
+      .prediction-table th:nth-child(2),.prediction-table td:nth-child(2){width:52px}
+      .prediction-table th:nth-child(3),.prediction-table td:nth-child(3){width:78px;font-size:10px}
+      .prediction-table th:nth-child(4),.prediction-table th:nth-child(5),.prediction-table td:nth-child(4),.prediction-table td:nth-child(5){max-width:72px}
+      .prediction-table .pred-cell{width:118px;min-width:118px;max-width:122px}
+      .prediction-table .pred-controls{grid-template-columns:34px 34px;gap:4px}
+      .prediction-table .pred-controls input.small{width:34px;min-width:34px;padding:6px 4px}
+      .prediction-table .pred-controls select,.prediction-table .pred-controls button{font-size:11px;padding:6px 5px}
+      .others-board-table .sticky-col{min-width:82px;max-width:82px}
+      .others-match-head,.others-pred-cell{min-width:86px;max-width:86px}
+      .others-team-name{max-width:54px}
     }
 
   </style>
@@ -386,9 +329,7 @@
           <table id="mTable" class="prediction-table">
             <thead>
               <tr>
-                <th>Mängu nr</th><th>Alagrupp</th><th>Kodumeeskond</th><th>Võõrsilmeeskond</th><th>Asukoht ja kellaaeg (Eesti aeg)</th>
-                <th class="right">Sinu ennustus</th>
-                <th class="right">Punktid</th>
+                <th>Nr</th><th>Etapp</th><th>Kellaaeg</th><th>Kodu</th><th>Võõrsil</th><th class="right">Sinu ennustus</th><th class="right">Punktid</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -843,20 +784,19 @@ async function loadMatchesAndPreds(){
       const tr = document.createElement("tr");
       const final = (row.final_home===null || row.final_away===null) ? "" : `${row.final_home}:${row.final_away}`;
       const ko = row.kickoff_utc ? new Date(row.kickoff_utc) : null;
-const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
+const koTxt = ko ? new Intl.DateTimeFormat('et-EE',{timeZone:'Europe/Tallinn', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}).format(ko) : "";
 const locked = !!(ko && (Date.now() >= (ko.getTime() - 60*60*1000)) && !(me && me.is_admin));
 const lockHint = locked ? "Lukus" : "";
 const finished = !!(row.is_finished || final);
-const locationAndTime = `${row.location || ""}${row.location && koTxt ? " • " : ""}${koTxt}`;
 const colorClass = pointColorClass(row, pr);
 if (finished && colorClass) tr.className = `row-finished ${colorClass}`;
 const advSelect = isPlayoff(row) ? `<select data-mid="${row.id}" data-side="adv" ${locked ? "disabled" : ""}><option value="">Edasipääseja viigi korral</option><option value="${escapeHtml(row.home)}" ${pr?.advancing_team===row.home?"selected":""}>${escapeHtml(row.home)}</option><option value="${escapeHtml(row.away)}" ${pr?.advancing_team===row.away?"selected":""}>${escapeHtml(row.away)}</option></select>` : "";
 tr.innerHTML = `
   <td>${row.match_no}</td>
   <td><span class="pill">${row.stage}</span></td>
+  <td class="match-time">${koTxt}</td>
   <td>${row.home}</td>
   <td>${row.away}</td>
-  <td>${locationAndTime} ${lockHint ? `<span class="pill">${lockHint}</span>` : ""}</td>
   <td class="pred-cell">
     <div class="pred-controls">
       <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" ${locked ? "disabled" : ""}>
