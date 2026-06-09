@@ -200,3 +200,23 @@ Vaikimisi valitakse uusim lõppenud mäng.
 ## Admin screenshot vaade mitme mänguga
 Admin screenshot plokis saab nüüd valida ühe mängu või märkida `mitu mängu kõrvuti`.
 Mitme mängu vaates kuvatakse valitud arv viimaseid lõppenud mänge kõrvuti, vanem vasakul ja uuem paremal.
+
+## API-Football tulemuste cron
+
+Selles paketis on lisatud endpoint:
+
+`GET /api/cron/sync-results`
+
+See käivitab API-Football tulemuste sünkroniseerimise ja arvutab muutunud mängude punktid ümber.
+
+Turvalisus:
+- lisa Railway Variables alla `CRON_SECRET`
+- cron peab endpointi kutsuma kas kujul `?secret=...` või Authorization headeriga `Bearer ...`
+
+Näide URL-ist:
+
+`https:// sinu-samsungi-domeen /api/cron/sync-results?secret=SINU_CRON_SECRET`
+
+Soovituslik sagedus turniiri ajal: iga 10 kuni 15 minutit. Väljaspool mängupäevi võib harvemini.
+
+`Teiste ennustused` vaade ise API-Footballit ei päri. See kuvab ainult andmebaasi juba salvestatud tulemusi.

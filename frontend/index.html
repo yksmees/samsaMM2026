@@ -897,11 +897,8 @@ function fifaCode(name){
 function formatPrediction(match, pr){
   if (!pr) return "";
   let txt = `${pr.pred_home}:${pr.pred_away}`;
-  if (isPlayoff(match)){
-    if (isTiePrediction(pr) && pr.advancing_team) txt += `→${fifaCode(pr.advancing_team)}`;
-    const adv = match.advancing_team || (Number(match.final_home) > Number(match.final_away) ? match.home : Number(match.final_away) > Number(match.final_home) ? match.away : "");
-    const predicted = Number(pr.pred_home) > Number(pr.pred_away) ? match.home : Number(pr.pred_away) > Number(pr.pred_home) ? match.away : pr.advancing_team;
-    if (adv && predicted && adv === predicted) txt += `<span class="adv-mark">↑</span>`;
+  if (isPlayoff(match) && isTiePrediction(pr) && pr.advancing_team){
+    txt += `→${fifaCode(pr.advancing_team)}`;
   }
   return txt;
 }

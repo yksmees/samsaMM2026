@@ -419,3 +419,13 @@ Vaikimisi valitakse uusim lõppenud mäng.
 ## Admin screenshot vaade mitme mänguga
 Admin screenshot plokis saab nüüd valida ühe mängu või märkida `mitu mängu kõrvuti`.
 Mitme mängu vaates kuvatakse valitud arv viimaseid lõppenud mänge kõrvuti, vanem vasakul ja uuem paremal.
+
+## API-Football cron
+
+Lisatud on cron endpoint `GET /api/cron/sync-results`.
+
+Endpoint vajab `CRON_SECRET` env muutujat. Kutsu seda Railway cronist või välisest cron teenusest:
+
+`/api/cron/sync-results?secret=SINU_CRON_SECRET`
+
+Cron sync kasutab sama API-Football fixture kaitset kui admini sync: kui `api_football_fixture_id` on mängul olemas, ei seota seda enam teise fixture'iga ümber.
