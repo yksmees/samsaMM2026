@@ -244,20 +244,47 @@
     .points-badge.points-0{background:#991b1b;color:#fee2e2;border-color:#fca5a5}
     .others-no-pred{color:#64748b;font-weight:900}
     .score-pill.p5{background:#bbf7d0;color:#052e16}.score-pill.p4{background:#166534;color:#dcfce7}.score-pill.p3{background:#1d4ed8;color:#dbeafe}.score-pill.p2{background:#facc15;color:#422006}.score-pill.p1{background:#f97316;color:#431407}.score-pill.p0{background:#991b1b;color:#fee2e2}
+    .points-help{margin-top:10px;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(15,23,42,.45);padding:9px}
+    .points-help-title{font-weight:950;margin-bottom:7px;font-size:13px}
+    .points-help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px 12px}
+    .points-help-row{display:flex;align-items:center;gap:8px;min-width:0;font-size:12px;line-height:1.25;color:#e5e7eb}
+    .points-help-row .points-badge{flex:0 0 auto}
+    .prediction-table th:nth-child(4),
+    .prediction-table th:nth-child(5),
+    .prediction-table td:nth-child(4),
+    .prediction-table td:nth-child(5){max-width:92px}
+    .prediction-table th:nth-child(6),
+    .prediction-table td:nth-child(6){width:116px}
+    .prediction-table .pred-cell{width:120px;min-width:120px;max-width:126px}
+    .prediction-table .pred-controls{grid-template-columns:32px 32px;gap:4px}
+    .prediction-table .pred-controls input.small{width:32px;min-width:32px;padding:6px 3px}
+    .adv-choice-list{grid-column:1 / -1;display:grid;gap:4px}
+    .adv-choice{display:flex;align-items:center;gap:5px;min-width:0;padding:4px 6px;border:1px solid rgba(148,163,184,.20);border-radius:999px;background:rgba(15,23,42,.75);font-size:10px;font-weight:900;color:#e5e7eb;cursor:pointer;line-height:1.05}
+    .adv-choice input{min-width:0;width:13px;height:13px;margin:0;accent-color:#16a34a}
+    .adv-choice span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .adv-choice:has(input:checked){border-color:#86efac;background:rgba(22,163,74,.24);color:#dcfce7}
+    .adv-choice input:disabled{cursor:not-allowed}
+    .adv-choice.locked{cursor:default;opacity:.9}
     @media(max-width:760px){
       .prediction-panel,.others-panel{padding:8px}
       .prediction-table th,.prediction-table td,.others-board-table th,.others-board-table td{padding:5px 4px;font-size:12px}
       .prediction-table th:nth-child(1),.prediction-table td:nth-child(1){width:36px}
       .prediction-table th:nth-child(2),.prediction-table td:nth-child(2){width:52px}
       .prediction-table th:nth-child(3),.prediction-table td:nth-child(3){width:78px;font-size:10px}
-      .prediction-table th:nth-child(4),.prediction-table th:nth-child(5),.prediction-table td:nth-child(4),.prediction-table td:nth-child(5){max-width:72px}
-      .prediction-table .pred-cell{width:118px;min-width:118px;max-width:122px}
-      .prediction-table .pred-controls{grid-template-columns:34px 34px;gap:4px}
-      .prediction-table .pred-controls input.small{width:34px;min-width:34px;padding:6px 4px}
-      .prediction-table .pred-controls select,.prediction-table .pred-controls button{font-size:11px;padding:6px 5px}
-      .others-board-table .sticky-col{min-width:82px;max-width:82px}
-      .others-match-head,.others-pred-cell{min-width:86px;max-width:86px}
-      .others-team-name{max-width:54px}
+      .prediction-table th:nth-child(4),.prediction-table th:nth-child(5),.prediction-table td:nth-child(4),.prediction-table td:nth-child(5){max-width:56px}
+      .prediction-table th:nth-child(6),.prediction-table td:nth-child(6){width:96px}
+      .prediction-table .pred-cell{width:96px;min-width:96px;max-width:100px}
+      .prediction-table .pred-controls{grid-template-columns:28px 28px;gap:3px}
+      .prediction-table .pred-controls input.small{width:28px;min-width:28px;padding:5px 2px;font-size:12px}
+      .prediction-table .pred-controls select,.prediction-table .pred-controls button{font-size:10px;padding:5px 4px}
+      .prediction-table .tie-adv-label{font-size:9px}
+      .adv-choice{font-size:9px;padding:3px 5px}
+      .others-board-table .sticky-col{min-width:76px;max-width:76px}
+      .others-match-head,.others-pred-cell{min-width:78px;max-width:78px}
+      .others-team-name{max-width:48px}
+      .points-help{padding:8px}
+      .points-help-grid{grid-template-columns:1fr;gap:5px}
+      .points-help-row{font-size:11px}
     }
 
   </style>
@@ -355,6 +382,7 @@
       <div id="lb" class="hide" style="margin-top:8px">
         <div class="sub">Samsungi versioonis on kaks eraldi arvestust. Play-off algab nullist ning lisaküsimuste punktid lisatakse play-off edetabelisse.</div>
         <div id="lbMsg" class="msg"></div>
+        <div id="lbPointsHelp"></div>
         <div class="grid cols2" style="margin-top:10px">
           <div class="card">
             <strong>Alagrupimängude edetabel</strong>
@@ -405,6 +433,7 @@
 <div id="others" class="others-panel hide" style="margin-top:8px">
   
   <div id="othersMsg" class="msg"></div>
+  <div id="othersPointsHelp"></div>
 
   <div class="others-board-section" style="margin-top:12px">
     <strong>Alagrupimängud</strong>
@@ -655,6 +684,16 @@ function pointBadge(points){
   const label = safe === 5 ? "4+1p" : `${safe}p`;
   return `<span class="points-badge others-points-badge points-${safe}">${label}</span>`;
 }
+function pointsHelp(){
+  return `<div class="points-help"><div class="points-help-title">Punktide värvid</div><div class="points-help-grid">
+    <div class="points-help-row">${pointBadge(5)}<span>õige skoor ja lisapunkt edasipääseja eest ainult play-offis</span></div>
+    <div class="points-help-row">${pointBadge(4)}<span>õige skoor</span></div>
+    <div class="points-help-row">${pointBadge(3)}<span>õige võitja või viik ja üks õige väravate arv</span></div>
+    <div class="points-help-row">${pointBadge(2)}<span>õige võitja või õige viik</span></div>
+    <div class="points-help-row">${pointBadge(1)}<span>üks õige väravate arv</span></div>
+    <div class="points-help-row">${pointBadge(0)}<span>kõik vale</span></div>
+  </div></div>`;
+}
 function pointColorClass(row, pr){ return ""; }
 function isPlayoff(row){ return Number(row?.match_no || 0) >= 73; }
 function predictionNeedsAdvancer(row, ph, pa){
@@ -669,8 +708,9 @@ function updateAdvancerVisibility(scope, row){
   if (!wrap || !hInput || !aInput) return;
   const needs = predictionNeedsAdvancer(row, hInput.value, aInput.value);
   wrap.classList.toggle("hide", !needs);
-  const select = wrap.querySelector("select");
-  if (select && !needs) select.value = "";
+  const hidden = wrap.querySelector('input[data-side="adv"]');
+  if (hidden && !needs) hidden.value = "";
+  if (!needs) wrap.querySelectorAll('input[data-adv-radio]').forEach(r => { r.checked = false; });
 }
 function isTiePrediction(pr){ return pr && Number(pr.pred_home) === Number(pr.pred_away); }
 function fifaCode(name){
@@ -821,7 +861,11 @@ const finished = !!(row.is_finished || final);
 const colorClass = pointColorClass(row, pr);
 if (finished && colorClass) tr.className = `row-finished ${colorClass}`;
 const showAdvSelect = isPlayoff(row) && pr && Number(pr.pred_home) === Number(pr.pred_away);
-const advSelect = isPlayoff(row) ? `<div class="tie-adv-wrap ${showAdvSelect ? "" : "hide"}" data-adv-wrap="${row.id}"><div class="tie-adv-label">Kui 90 min jääb viiki, vali edasipääseja</div><select data-mid="${row.id}" data-side="adv" ${locked ? "disabled" : ""}><option value="">Vali edasipääseja</option><option value="${escapeHtml(row.home)}" ${pr?.advancing_team===row.home?"selected":""}>${escapeHtml(row.home)}</option><option value="${escapeHtml(row.away)}" ${pr?.advancing_team===row.away?"selected":""}>${escapeHtml(row.away)}</option></select></div>` : "";
+const currentAdv = pr?.advancing_team || "";
+const advSelect = isPlayoff(row) ? `<div class="tie-adv-wrap ${showAdvSelect ? "" : "hide"}" data-adv-wrap="${row.id}"><div class="tie-adv-label">Kui 90 min jääb viiki, vali edasipääseja</div><input type="hidden" data-mid="${row.id}" data-side="adv" value="${escapeHtml(currentAdv)}"><div class="adv-choice-list">
+  <label class="adv-choice ${locked ? "locked" : ""}"><input type="radio" name="adv_${row.id}" data-mid="${row.id}" data-adv-radio="${escapeHtml(row.home)}" ${currentAdv===row.home?"checked":""} ${locked ? "disabled" : ""}><span>✓ ${fifaCode(row.home)}</span></label>
+  <label class="adv-choice ${locked ? "locked" : ""}"><input type="radio" name="adv_${row.id}" data-mid="${row.id}" data-adv-radio="${escapeHtml(row.away)}" ${currentAdv===row.away?"checked":""} ${locked ? "disabled" : ""}><span>✓ ${fifaCode(row.away)}</span></label>
+</div></div>` : "";
 tr.innerHTML = `
   <td>${row.match_no}</td>
   <td><span class="pill">${row.stage}</span></td>
@@ -845,15 +889,22 @@ tr.innerHTML = `
       const mid = Number(btn.getAttribute("data-save"));
       const hInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="h"]`);
       const aInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="a"]`);
-      const advInput = tbody.querySelector(`select[data-mid="${mid}"][data-side="adv"]`);
+      const advInput = tbody.querySelector(`input[data-mid="${mid}"][data-side="adv"]`);
 
       const matchRow = (m.matches || []).find(x => Number(x.id) === mid);
-      [hInput, aInput, advInput].forEach(inp=>{
+      [hInput, aInput].forEach(inp=>{
         if (!inp) return;
         inp.addEventListener("input", ()=>{
           btn.classList.remove("saved");
           btn.textContent = "Salvesta";
           if (matchRow) updateAdvancerVisibility(tbody, matchRow);
+        });
+      });
+      tbody.querySelectorAll(`input[data-mid="${mid}"][data-adv-radio]`).forEach(radio=>{
+        radio.addEventListener("change", ()=>{
+          if (advInput) advInput.value = radio.getAttribute("data-adv-radio") || "";
+          btn.classList.remove("saved");
+          btn.textContent = "Salvesta";
         });
       });
       if (matchRow) updateAdvancerVisibility(tbody, matchRow);
@@ -898,6 +949,7 @@ async function loadLeaderboard(){
   playoffBody.innerHTML = "";
   $("lbMsg").textContent = "";
   try{
+    if ($('lbPointsHelp')) $('lbPointsHelp').innerHTML = pointsHelp();
     const r = await call("leaderboard",{method:"GET"});
     renderLeaderboardRows(groupBody, r.group || []);
     renderLeaderboardRows(playoffBody, r.playoff || []);
@@ -934,6 +986,7 @@ async function loadOthersView(){
   playoffBody.innerHTML = "";
   $("othersMsg").textContent = "";
 
+  if ($('othersPointsHelp')) $('othersPointsHelp').innerHTML = pointsHelp();
   if (!token) return;
 
   try{
