@@ -357,6 +357,7 @@
       #mTable.prediction-table .adv-choice-list{grid-template-columns:1fr 1fr}
       .desktop-result-mini{margin-top:5px;text-align:center;color:#cbd5e1;font-size:12px;font-weight:850}
       .desktop-result-mini strong{color:#f8fafc}
+      .desktop-lock-line{margin-top:5px;text-align:center}
     }
 
 
@@ -387,7 +388,9 @@
       .mobile-pred-card.points-2{background:rgba(250,204,21,.24);border-color:rgba(253,224,71,.55)}
       .mobile-pred-card.points-1{background:rgba(249,115,22,.24);border-color:rgba(253,186,116,.55)}
       .mobile-pred-card.points-0{background:rgba(153,27,27,.30);border-color:rgba(252,165,165,.55)}
-      .mobile-card-top{display:flex;justify-content:space-between;gap:8px;color:#cbd5e1;font-size:12px;font-weight:900;margin-bottom:7px}
+      .mobile-card-top{display:flex;justify-content:space-between;gap:8px;color:#cbd5e1;font-size:12px;font-weight:900;margin-bottom:7px;align-items:center}
+      .mobile-card-top-left,.mobile-card-top-right{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+      .lock-badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:3px 7px;background:rgba(250,204,21,.18);color:#fde68a;border:1px solid rgba(250,204,21,.32);font-size:10px;font-weight:950;line-height:1;white-space:nowrap}
       .mobile-score-line{display:grid;grid-template-columns:minmax(0,1fr) 38px 38px minmax(0,1fr);gap:5px;align-items:center}
       .mobile-score-line input.small{width:38px;min-width:38px;padding:7px 3px;text-align:center;font-size:16px;font-weight:900;border-radius:10px}
       .mobile-team{font-size:13px;font-weight:950;color:#f8fafc;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -836,6 +839,16 @@ function matchAdvancer(row){
   return "";
 }
 function isPlayoff(row){ return Number(row?.match_no || 0) >= 73; }
+function sortMatchesForPredictions(matches){
+  return [...(matches || [])].sort((a,b)=>{
+    const at = a?.kickoff_utc ? new Date(a.kickoff_utc).getTime() : Number.POSITIVE_INFINITY;
+    const bt = b?.kickoff_utc ? new Date(b.kickoff_utc).getTime() : Number.POSITIVE_INFINITY;
+    const av = Number.isFinite(at) ? at : Number.POSITIVE_INFINITY;
+    const bv = Number.isFinite(bt) ? bt : Number.POSITIVE_INFINITY;
+    if (av !== bv) return av - bv;
+    return Number(a?.match_no || 0) - Number(b?.match_no || 0);
+  });
+}
 function predictionNeedsAdvancer(row, ph, pa){
   if (!isPlayoff(row)) return false;
   if (ph === "" || pa === "" || ph === null || pa === null || ph === undefined || pa === undefined) return false;
@@ -1013,7 +1026,7 @@ async function loadMatchesAndPreds(){
     const map = new Map((p.predictions||[]).map(x=>[x.match_id, x]));
     const publicMap = pub.predictions_by_match || {};
     populateAdminMatchSelects(m.matches || []);
-    const matches = m.matches || [];
+    const matches = sortMatchesForPredictions(m.matches || []);
     const hasFinished = matches.some(row => !!(row.is_finished || finalScoreText(row)));
     const toggleBtn = $("toggleFinishedMatches");
     if (toggleBtn) {
@@ -1031,7 +1044,8 @@ async function loadMatchesAndPreds(){
       const locked = !!(ko && (Date.now() >= (ko.getTime() - 60*60*1000)) && !(me && me.is_admin));
       const finished = !!(row.is_finished || final);
       const colorClass = pointColorClass(row, pr);
-      tr.className = `${finished ? "match-finished" : ""} ${colorClass}`.trim();
+      tr.className = `${finished ? "match-finished" : ""} ${locked ? "match-locked" : ""} ${colorClass}`.trim();
+      const lockBadge = locked ? `<span class="lock-badge">Lukus</span>` : "";
       const showAdvSelect = isPlayoff(row) && pr && Number(pr.pred_home) === Number(pr.pred_away);
       const currentAdv = pr?.advancing_team || "";
       const adv = matchAdvancer(row);
@@ -1048,7 +1062,7 @@ async function loadMatchesAndPreds(){
       tr.innerHTML = `
         <td class="mobile-card-view" colspan="5">
           <div class="mobile-pred-card ${colorClass}">
-            <div class="mobile-card-top"><span>Mäng ${row.match_no}</span><span>${escapeHtml(row.stage || "")}</span></div>
+            <div class="mobile-card-top"><div class="mobile-card-top-left"><span>Mäng ${row.match_no}</span>${lockBadge}</div><div class="mobile-card-top-right"><span>${escapeHtml(row.stage || "")}</span></div></div>
             <div class="mobile-score-line prediction-action-scope">
               <span class="mobile-team mobile-home">${escapeHtml(row.home)}</span>
               <input class="small" data-mid="${row.id}" data-side="h" value="${pr?pr.pred_home:""}" placeholder="0" inputmode="numeric" ${locked ? "disabled" : ""}>
@@ -1077,6 +1091,7 @@ async function loadMatchesAndPreds(){
             ${advSelectDesktop}
             <button type="button" class="${pr ? "saved" : ""}" data-save="${row.id}" ${locked ? "disabled" : ""}>${saveText}</button>
           </div>
+          ${locked ? `<div class="desktop-lock-line">${lockBadge}</div>` : ""}
           ${final ? `<div class="desktop-result-mini"><strong>Lõpp skoor:</strong> ${final}${adv ? ` · <strong>Edasi:</strong> ${escapeHtml(adv)}` : ""}</div>` : ""}
         </td>
         <td class="desktop-pred-cell desktop-points right" data-points-cell="${row.id}">${pointsHtml}</td>
