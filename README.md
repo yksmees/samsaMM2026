@@ -460,3 +460,8 @@ Do not change the web service start command. The web service should keep using `
 ## Samsung update: lisaküsimuste automaatne kontroll adminis
 
 Admini lisaküsimuste halduses on nüüd iga küsimuse juures selgem kontrollikaart. Admin valib samast valikute süsteemist õige vastuse ja vajutab `Salvesta ja arvuta punktid`. Süsteem võrdleb kasutajate `answer_value` väärtust küsimuse `correct_answer_value` väärtusega ning uuendab `is_correct` ja `points` väljad. Käsitsi `Õige` ja `Vale` nupud jäid alles varuvariandiks.
+
+
+## Admin lisaküsimuste õige vastuse tühjendamine
+
+Admin saab lisaküsimuse õige vastuse lahtri tühjaks teha ja vajutada `Salvesta ja arvuta punktid`. Sellisel juhul eemaldatakse selle küsimuse õige vastus ning süsteem märgib selle küsimuse kasutajate vastused automaatselt mitteõigeks ja punktid nulli.

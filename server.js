@@ -2416,8 +2416,9 @@ async function recalcBonusAnswers(sb){
   let updated = 0;
   for (const a of aRes.data || []){
     const q = qMap.get(a.question_id);
-    if (!q || !q.correct_answer_value) continue;
-    const ok = normalizeAnswerValue(a.answer_value) === normalizeAnswerValue(q.correct_answer_value);
+    if (!q) continue;
+    const hasCorrect = String(q.correct_answer_value || "").trim() !== "";
+    const ok = hasCorrect ? normalizeAnswerValue(a.answer_value) === normalizeAnswerValue(q.correct_answer_value) : false;
     const pts = ok ? Number(q.points || 1) : 0;
     await sb.from("bonus_answers").update({ is_correct:ok, points:pts }).eq("id", a.id);
     updated += 1;
