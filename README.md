@@ -456,3 +456,7 @@ Cron schedule example:
 ```
 
 Do not change the web service start command. The web service should keep using `npm start`.
+
+## Samsung update: lisaküsimuste automaatne kontroll adminis
+
+Admini lisaküsimuste halduses on nüüd iga küsimuse juures selgem kontrollikaart. Admin valib samast valikute süsteemist õige vastuse ja vajutab `Salvesta ja arvuta punktid`. Süsteem võrdleb kasutajate `answer_value` väärtust küsimuse `correct_answer_value` väärtusega ning uuendab `is_correct` ja `points` väljad. Käsitsi `Õige` ja `Vale` nupud jäid alles varuvariandiks.

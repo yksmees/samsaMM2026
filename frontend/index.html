@@ -97,6 +97,14 @@
     .predicted-score{display:block;font-weight:800;color:var(--text)}
     .adv-mark{font-weight:900;margin-left:4px;color:#42d392}
     .answer-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,260px);gap:10px;align-items:center;margin-top:10px}
+    .admin-bonus-card{border-color:rgba(74,144,226,.35)}
+    .admin-bonus-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .admin-bonus-control{display:grid;grid-template-columns:minmax(220px,1.4fr) 130px 74px minmax(220px,1fr) auto auto auto;gap:8px;align-items:end;margin-top:10px}
+    .admin-bonus-control label{display:flex;flex-direction:column;gap:4px;min-width:0}
+    .admin-bonus-control input,.admin-bonus-control select{width:100%;box-sizing:border-box}
+    .admin-bonus-lock{align-self:center;flex-direction:row!important;gap:6px!important;white-space:nowrap}
+    @media(max-width:980px){.admin-bonus-control{grid-template-columns:1fr 1fr}.admin-bonus-control label:first-child,.admin-bonus-control label:nth-child(4){grid-column:1/-1}}
+    @media(max-width:560px){.admin-bonus-control{grid-template-columns:1fr}.admin-bonus-control label:first-child,.admin-bonus-control label:nth-child(4){grid-column:auto}.admin-bonus-control button{width:100%}}
     .rules-text{white-space:pre-wrap;line-height:1.55;color:var(--text);margin-top:10px}
     textarea.admin-textarea{width:100%;min-height:180px;background:#0d1430;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 12px;font:inherit;box-sizing:border-box}
     .mini{font-size:12px;color:var(--muted)}
@@ -616,7 +624,7 @@
       <option value="text">text</option>
     </select>
     <button id="btnAddBonusQuestion" class="primary" type="button">Lisa küsimus</button>
-    <button id="btnRecalcBonus" type="button">Arvuta lisaküsimused ümber</button>
+    <button id="btnRecalcBonus" type="button">Arvuta kõik lisaküsimused valitud õigete vastuste järgi</button>
   </div>
   <div class="screenshot-board-wrap">
     <table id="bonusAnswersTable">
@@ -1515,17 +1523,46 @@ async function loadAdminBonus(){
   if (!box || !tbody) return;
   try{
     adminBonusData = await call("admin/bonus", { method:"GET" });
-    box.innerHTML = (adminBonusData.questions || []).map(q => {
+    const questions = adminBonusData.questions || [];
+    const answers = adminBonusData.answers || [];
+    const answersByQuestion = new Map();
+    for (const a of answers) {
+      const qid = Number(a.question_id);
+      if (!answersByQuestion.has(qid)) answersByQuestion.set(qid, []);
+      answersByQuestion.get(qid).push(a);
+    }
+    box.innerHTML = questions.map(q => {
       const opts = optionsForQuestion(q, adminBonusData);
+      const qAnswers = answersByQuestion.get(Number(q.id)) || [];
+      const answeredCount = qAnswers.filter(a => String(a.answer_value || a.answer_text || "").trim()).length;
+      const correctCount = qAnswers.filter(a => a.is_correct).length;
+      const totalPoints = qAnswers.reduce((sum, a) => sum + Number(a.points || 0), 0);
       const correctInput = q.answer_type === "text"
-        ? `<input data-bq-correct="${q.id}" value="${escapeHtml(q.correct_answer_text || q.correct_answer_value || "")}" placeholder="õige vastus">`
-        : searchableInputHtml("bq-correct", q.id, opts, q.correct_answer_value || "", q.correct_answer_text || "", "Kirjuta ja vali õige vastus");
-      return `<div class="card" style="margin-top:8px"><div class="row"><input data-bq-text="${q.id}" value="${escapeHtml(q.question_text)}"><select data-bq-type="${q.id}"><option ${q.answer_type==="team"?"selected":""}>team</option><option ${q.answer_type==="player"?"selected":""}>player</option><option ${q.answer_type==="number"?"selected":""}>number</option><option ${q.answer_type==="registered_user"?"selected":""}>registered_user</option><option ${q.answer_type==="text"?"selected":""}>text</option></select><input class="small" data-bq-points="${q.id}" value="${q.points || 1}" placeholder="p"><label class="mini"><input type="checkbox" data-bq-lock="${q.id}" ${q.is_locked?"checked":""}> lukus</label>${correctInput}<button type="button" data-bq-save="${q.id}" class="primary">Salvesta</button><button type="button" data-bq-del="${q.id}">Kustuta</button></div></div>`;
+        ? `<input data-bq-correct="${q.id}" value="${escapeHtml(q.correct_answer_text || q.correct_answer_value || "")}" placeholder="Kirjuta õige vastus">`
+        : searchableInputHtml("bq-correct", q.id, opts, q.correct_answer_value || "", q.correct_answer_text || "", q.answer_type === "player" ? "Kirjuta nimi ja vali õige vastus" : "Kirjuta ja vali õige vastus");
+      return `<div class="card admin-bonus-card" style="margin-top:10px">
+        <div class="admin-bonus-title"><strong>${escapeHtml(q.question_text)}</strong><span class="mini">${answeredCount} vastust · ${correctCount} õiget · ${totalPoints}p</span></div>
+        <div class="admin-bonus-control">
+          <label><span class="mini">Küsimus</span><input data-bq-text="${q.id}" value="${escapeHtml(q.question_text)}"></label>
+          <label><span class="mini">Tüüp</span><select data-bq-type="${q.id}"><option ${q.answer_type==="team"?"selected":""}>team</option><option ${q.answer_type==="player"?"selected":""}>player</option><option ${q.answer_type==="number"?"selected":""}>number</option><option ${q.answer_type==="registered_user"?"selected":""}>registered_user</option><option ${q.answer_type==="text"?"selected":""}>text</option></select></label>
+          <label><span class="mini">Punkte</span><input class="small" data-bq-points="${q.id}" value="${q.points || 1}" placeholder="p"></label>
+          <label><span class="mini">Õige vastus</span>${correctInput}</label>
+          <label class="admin-bonus-lock"><input type="checkbox" data-bq-lock="${q.id}" ${q.is_locked?"checked":""}> lukus</label>
+          <button type="button" data-bq-save="${q.id}" class="primary">Salvesta ja arvuta punktid</button>
+          <button type="button" data-bq-del="${q.id}">Kustuta</button>
+        </div>
+        <div class="mini" style="margin-top:6px">Automaatne kontroll võrdleb kasutaja vastuse tehnilist väärtust siin valitud õige vastusega. Käsitsi õige/vale allpool jääb varuvariandiks.</div>
+      </div>`;
     }).join("");
-    tbody.innerHTML = (adminBonusData.answers || []).map(a => `<tr><td>${escapeHtml(a.players?.display_name || "")}</td><td>${escapeHtml(a.bonus_questions?.question_text || "")}</td><td>${escapeHtml(a.answer_text || a.answer_value || "")}</td><td>${a.is_correct ? "jah" : "ei"}</td><td class="right">${a.points || 0}</td><td><button data-ba-ok="${a.id}">Õige</button><button data-ba-bad="${a.id}">Vale</button></td></tr>`).join("");
+    const questionById = new Map(questions.map(q => [Number(q.id), q]));
+    tbody.innerHTML = answers.map(a => {
+      const q = questionById.get(Number(a.question_id));
+      const manualPoints = q ? Number(q.points || 1) : 1;
+      return `<tr><td>${escapeHtml(a.players?.display_name || "")}</td><td>${escapeHtml(a.bonus_questions?.question_text || "")}</td><td>${escapeHtml(a.answer_text || a.answer_value || "")}</td><td>${a.is_correct ? "jah" : "ei"}</td><td class="right">${a.points || 0}</td><td><button data-ba-ok="${a.id}" data-ba-points="${manualPoints}">Õige</button><button data-ba-bad="${a.id}">Vale</button></td></tr>`;
+    }).join("");
     box.querySelectorAll("button[data-bq-save]").forEach(btn => btn.onclick = () => saveAdminQuestion(btn.dataset.bqSave));
     box.querySelectorAll("button[data-bq-del]").forEach(btn => btn.onclick = () => deleteAdminQuestion(btn.dataset.bqDel));
-    tbody.querySelectorAll("button[data-ba-ok]").forEach(btn => btn.onclick = () => setBonusAnswer(btn.dataset.baOk, true));
+    tbody.querySelectorAll("button[data-ba-ok]").forEach(btn => btn.onclick = () => setBonusAnswer(btn.dataset.baOk, true, Number(btn.dataset.baPoints || 1)));
     tbody.querySelectorAll("button[data-ba-bad]").forEach(btn => btn.onclick = () => setBonusAnswer(btn.dataset.baBad, false));
     renderBonusScreenshot();
   }catch(e){
@@ -1559,8 +1596,8 @@ async function deleteAdminQuestion(id){
   try{ await call(`admin/bonus/questions/${id}`, { method:"DELETE" }); await loadAdminBonus(); await loadBonus(); }
   catch(e){ setMsg($("adminBonusMsg"), false, e.message); }
 }
-async function setBonusAnswer(id, ok){
-  try{ await call(`admin/bonus/answers/${id}`, { method:"PUT", body:JSON.stringify({ is_correct:ok, points:ok ? 1 : 0 }) }); await loadAdminBonus(); await loadLeaderboard(); }
+async function setBonusAnswer(id, ok, manualPoints=1){
+  try{ await call(`admin/bonus/answers/${id}`, { method:"PUT", body:JSON.stringify({ is_correct:ok, points:ok ? Number(manualPoints || 1) : 0 }) }); await loadAdminBonus(); await loadLeaderboard(); }
   catch(e){ setMsg($("adminBonusMsg"), false, e.message); }
 }
 
@@ -1939,7 +1976,7 @@ if ($("btnAddBonusQuestion")) $("btnAddBonusQuestion").onclick = async ()=>{
   }catch(e){ setMsg($("adminBonusMsg"), false, e.message); }
 };
 if ($("btnRecalcBonus")) $("btnRecalcBonus").onclick = async ()=>{
-  try{ const r = await call("admin/bonus/recalculate", { method:"POST" }); setMsg($("adminBonusMsg"), true, `Ümber arvutatud: ${r.updated}`); await loadAdminBonus(); await loadLeaderboard(); }
+  try{ const r = await call("admin/bonus/recalculate", { method:"POST" }); setMsg($("adminBonusMsg"), true, `Lisaküsimused arvutatud valitud õigete vastuste järgi: ${r.updated} vastust.`); await loadAdminBonus(); await loadLeaderboard(); }
   catch(e){ setMsg($("adminBonusMsg"), false, e.message); }
 };
 
