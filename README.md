@@ -465,3 +465,9 @@ Admini lisaküsimuste halduses on nüüd iga küsimuse juures selgem kontrollika
 ## Admin lisaküsimuste õige vastuse tühjendamine
 
 Admin saab lisaküsimuse õige vastuse lahtri tühjaks teha ja vajutada `Salvesta ja arvuta punktid`. Sellisel juhul eemaldatakse selle küsimuse õige vastus ning süsteem märgib selle küsimuse kasutajate vastused automaatselt mitteõigeks ja punktid nulli.
+
+## Supabase pagination fix
+
+Serveris on lisatud `selectAll` helper, et suuremad Supabase päringud loeksid read 1000 kaupa lõpuni. See kaitseb edetabelit ja teiste ennustuste vaadet olukorras, kus `predictions` või `bonus_answers` tabelis on üle 1000 rea.
+
+Parandus puudutab ainult lugemist. Kasutajaid, ennustusi, punkte ega SQL skeemi ei muudeta.

@@ -110,6 +110,26 @@ function sbAdmin() {
   return createClient(url, key, { auth: { persistSession: false }, realtime: { transport: WebSocket } });
 }
 
+
+async function selectAll(queryFactory, pageSize = 1000) {
+  const rows = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + pageSize - 1;
+    const res = await queryFactory().range(from, to);
+    if (res.error) throw new Error(res.error.message);
+
+    const batch = Array.isArray(res.data) ? res.data : [];
+    rows.push(...batch);
+
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows;
+}
+
 function parseRoute(event) {
   const p = event.path || "";
   const m = p.match(/\/api\/(.*)$/) || p.match(/\/\.netlify\/functions\/api\/(.*)$/);
@@ -1687,9 +1707,8 @@ async function fetchApiFootballFixtures(){
 async function recalcPointsForMatch(sb, matchId, fh, fa){
   const matchRes = await sb.from("matches").select("*").eq("id", matchId).single();
   const match = matchRes.error ? null : matchRes.data;
-  const preds = await sb.from("predictions").select("id,pred_home,pred_away,advancing_team").eq("match_id", matchId);
-  if (preds.error) return;
-  for (const p of preds.data || []){
+  const predRows = await selectAll(() => sb.from("predictions").select("id,pred_home,pred_away,advancing_team").eq("match_id", matchId));
+  for (const p of predRows){
     const pts = calcPoints(p.pred_home, p.pred_away, fh, fa, match, p.advancing_team);
     await sb.from("predictions").update({ points: pts }).eq("id", p.id);
   }
@@ -2147,9 +2166,9 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
   const fh = upd.data.final_home;
   const fa = upd.data.final_away;
   if (fh !== null && fa !== null && fh !== undefined && fa !== undefined) {
-    const preds = await sb.from("predictions").select("id,pred_home,pred_away,advancing_team").eq("match_id", upd.data.id);
-    if (!preds.error) {
-      for (const p of preds.data || []) {
+    const predRows = await selectAll(() => sb.from("predictions").select("id,pred_home,pred_away,advancing_team").eq("match_id", upd.data.id));
+    {
+      for (const p of predRows) {
         const pts = calcPoints(p.pred_home, p.pred_away, fh, fa, upd.data, p.advancing_team);
         await sb.from("predictions").update({ points: pts }).eq("id", p.id);
       }
@@ -2182,9 +2201,9 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
       const fh = upd.data.final_home;
       const fa = upd.data.final_away;
       if (fh !== null && fa !== null && fh !== undefined && fa !== undefined) {
-        const preds = await sb.from("predictions").select("id,pred_home,pred_away,advancing_team").eq("match_id", id);
-        if (!preds.error) {
-          for (const p of preds.data || []) {
+        const predRows = await selectAll(() => sb.from("predictions").select("id,pred_home,pred_away,advancing_team").eq("match_id", id));
+        {
+          for (const p of predRows) {
             const pts = calcPoints(p.pred_home, p.pred_away, fh, fa, upd.data, p.advancing_team);
             await sb.from("predictions").update({ points: pts }).eq("id", p.id);
           }
@@ -2207,9 +2226,8 @@ if (event.httpMethod === "PUT" && route.startsWith("admin/matches/by-no/")) {
     if (event.httpMethod === "GET" && route === "predictions") {
       const u = userFrom(event);
       if (!u) return json(401, { error: "Pole sisse logitud." });
-      const q = await sb.from("predictions").select("match_id,pred_home,pred_away,points,advancing_team").eq("player_id", u.sub);
-      if (q.error) return json(500, { error: q.error.message });
-      return json(200, { ok: true, predictions: q.data });
+      const rows = await selectAll(() => sb.from("predictions").select("match_id,pred_home,pred_away,points,advancing_team").eq("player_id", u.sub));
+      return json(200, { ok: true, predictions: rows });
     }
 
 // Public view of other players' predictions after lock or after match end
@@ -2230,19 +2248,17 @@ if (event.httpMethod === "GET" && route === "predictions/public") {
 
   if (!openMatchIds.length) return json(200, { ok: true, predictions_by_match: {} });
 
-  const predsRes = await sb
+  const predRows = await selectAll(() => sb
     .from("predictions")
     .select("match_id,player_id,pred_home,pred_away")
-    .in("match_id", openMatchIds);
-
-  if (predsRes.error) return json(500, { error: predsRes.error.message });
+    .in("match_id", openMatchIds));
 
   const playersRes = await sb.from("players").select("id,display_name,is_admin");
   if (playersRes.error) return json(500, { error: playersRes.error.message });
 
   const playerMap = new Map((playersRes.data || []).filter(p => !p.is_admin).map(p => [p.id, p.display_name]));
   const grouped = {};
-  for (const p of predsRes.data || []) {
+  for (const p of predRows) {
     if (p.player_id === u.sub) continue;
     if (!playerMap.has(p.player_id)) continue;
     if (!grouped[p.match_id]) grouped[p.match_id] = [];
@@ -2295,13 +2311,10 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
   let predictions = [];
 
   if (matchIds.length) {
-    const predsRes = await sb
+    predictions = await selectAll(() => sb
       .from("predictions")
       .select("match_id,player_id,pred_home,pred_away,points,advancing_team")
-      .in("match_id", matchIds);
-
-    if (predsRes.error) return json(500, { error: predsRes.error.message });
-    predictions = predsRes.data || [];
+      .in("match_id", matchIds));
   }
 
   return json(200, {
@@ -2408,13 +2421,11 @@ async function ensureDefaultBonusQuestions(sb){
   await sb.from("bonus_questions").insert(DEFAULT_BONUS_QUESTIONS);
 }
 async function recalcBonusAnswers(sb){
-  const qRes = await sb.from("bonus_questions").select("id,correct_answer_value,points");
-  if (qRes.error) return { updated:0, error:qRes.error.message };
-  const qMap = new Map((qRes.data || []).map(q => [q.id, q]));
-  const aRes = await sb.from("bonus_answers").select("id,question_id,answer_value");
-  if (aRes.error) return { updated:0, error:aRes.error.message };
+  const questionRows = await selectAll(() => sb.from("bonus_questions").select("id,correct_answer_value,points"));
+  const qMap = new Map(questionRows.map(q => [q.id, q]));
+  const answerRows = await selectAll(() => sb.from("bonus_answers").select("id,question_id,answer_value"));
   let updated = 0;
-  for (const a of aRes.data || []){
+  for (const a of answerRows){
     const q = qMap.get(a.question_id);
     if (!q) continue;
     const hasCorrect = String(q.correct_answer_value || "").trim() !== "";
@@ -2481,10 +2492,10 @@ if (event.httpMethod === "GET" && route === "admin/bonus") {
   if (!u || !u.is_admin) return json(403, { error:"Admini õigused puuduvad." });
   await ensureDefaultBonusQuestions(sb);
   const questions = await sb.from("bonus_questions").select("*").order("sort_order", { ascending:true });
-  const answers = await sb.from("bonus_answers").select("*,players(display_name),bonus_questions(question_text)").order("created_at", { ascending:true });
-  if (questions.error || answers.error) return json(500, { error:(questions.error || answers.error).message });
+  const answerRows = await selectAll(() => sb.from("bonus_answers").select("*,players(display_name),bonus_questions(question_text)").order("created_at", { ascending:true }));
+  if (questions.error) return json(500, { error:questions.error.message });
   const options = await buildBonusOptions(sb);
-  return json(200, { ok:true, questions:questions.data || [], answers:answers.data || [], options });
+  return json(200, { ok:true, questions:questions.data || [], answers:answerRows, options });
 }
 
 if (event.httpMethod === "POST" && route === "admin/bonus/questions") {
@@ -2557,18 +2568,16 @@ if (event.httpMethod === "POST" && route === "admin/bonus/recalculate") {
 // Leaderboard
 if (event.httpMethod === "GET" && route === "leaderboard") {
   const players = await sb.from("players").select("id,display_name,is_admin");
-  const preds = await sb.from("predictions").select("player_id,match_id,points");
   const matches = await sb.from("matches").select("id,match_no,is_finished,final_home,final_away").order("match_no", { ascending: true });
-  const bonus = await sb.from("bonus_answers").select("player_id,points");
+  const allPreds = await selectAll(() => sb.from("predictions").select("player_id,match_id,points"));
+  const bonusRows = await selectAll(() => sb.from("bonus_answers").select("player_id,points"));
 
-  if (players.error || preds.error || matches.error) {
-    return json(500, { error: (players.error || preds.error || matches.error).message });
+  if (players.error || matches.error) {
+    return json(500, { error: (players.error || matches.error).message });
   }
 
   const allPlayers = (players.data || []).filter(p => !p.is_admin);
   const matchMap = new Map((matches.data || []).map(m => [m.id, m]));
-  const allPreds = preds.data || [];
-  const bonusRows = bonus.error ? [] : (bonus.data || []);
 
   function makeRows(type) {
     const map = new Map();
