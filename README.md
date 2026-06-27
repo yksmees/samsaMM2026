@@ -471,3 +471,12 @@ Admin saab lisaküsimuse õige vastuse lahtri tühjaks teha ja vajutada `Salvest
 Serveris on lisatud `selectAll` helper, et suuremad Supabase päringud loeksid read 1000 kaupa lõpuni. See kaitseb edetabelit ja teiste ennustuste vaadet olukorras, kus `predictions` või `bonus_answers` tabelis on üle 1000 rea.
 
 Parandus puudutab ainult lugemist. Kasutajaid, ennustusi, punkte ega SQL skeemi ei muudeta.
+
+## 2026-06-27 Play-off tiimide automaatne uuendus API-Footballist
+
+Tulemuste sync / cron uuendab nüüd play-off mängude kohatäited päris tiimidega, kui API-Footballis on fixture'il meeskonnad teada.
+
+- Kui match.home või match.away on kohatäide nagu `2A`, `1C`, `W74` jne, proovib sync leida kindla API-Football fixture'i kickoff aja, vooru ja staadioni järgi.
+- Kui vaste on kindel, salvestatakse `api_football_fixture_id` ning asendatakse kohatäited päris riikidega.
+- Kui vaste on ebakindel või duplikaat, ei kirjutata Samsungi mängu üle.
+- Olemasolevad ennustused jäävad sama `match_id` külge, kasutajaid ja ennustusi ei kustutata.

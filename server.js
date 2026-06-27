@@ -1610,7 +1610,35 @@ function normalizeTeamName(name){
 
 function isPlaceholderTeam(name){
   const s = String(name || "").trim();
+  if (!s) return true;
+  const n = normalizeTeamName(s);
+  if (["tbd", "to be decided", "to be confirmed", "unknown"].includes(n)) return true;
   return /^[WL]\d+$/i.test(s) || /^[123][A-Z]+$/i.test(s) || /^[12][A-L]$/i.test(s) || /^3[A-Z]+$/i.test(s);
+}
+
+function fixtureHasConcreteTeams(fx){
+  const home = fx?.teams?.home?.name;
+  const away = fx?.teams?.away?.name;
+  return !!home && !!away && !isPlaceholderTeam(home) && !isPlaceholderTeam(away);
+}
+
+function stageRoundKey(value){
+  const s = normalizeTeamName(value);
+  if (!s) return "";
+  if (s.includes("round of 32") || s.includes("32")) return "round32";
+  if (s.includes("round of 16") || s.includes("16")) return "round16";
+  if (s.includes("quarter")) return "quarter";
+  if (s.includes("semi")) return "semi";
+  if (s.includes("third") || s.includes("3rd") || s.includes("bronze")) return "third";
+  if (s === "final" || s.includes("final")) return "final";
+  return s;
+}
+
+function stageMatchesFixtureRound(dbMatch, fx){
+  const stageKey = stageRoundKey(dbMatch?.stage);
+  const roundKey = stageRoundKey(fx?.league?.round);
+  if (!stageKey || !roundKey) return false;
+  return stageKey === roundKey || roundKey.includes(stageKey) || stageKey.includes(roundKey);
 }
 
 function apiFixtureFinished(fx){
@@ -1649,11 +1677,37 @@ function scoreFixtureMatch(dbMatch, fx){
   const fxVenue = normalizeTeamName(fx?.fixture?.venue?.name);
   if (venue && fxVenue && (venue.includes(fxVenue) || fxVenue.includes(venue))) score += 2;
 
-  const stage = normalizeTeamName(dbMatch.stage);
-  const round = normalizeTeamName(fx?.league?.round);
-  if (stage && round && (round.includes(stage) || stage.includes(round))) score += 1;
+  if (stageMatchesFixtureRound(dbMatch, fx)) score += 3;
 
   return score;
+}
+
+function chooseFixtureForPlaceholderPlayoffMatch(dbMatch, fixtures){
+  if (!isPlayoffMatch(dbMatch)) return null;
+  if (!isPlaceholderTeam(dbMatch.home) && !isPlaceholderTeam(dbMatch.away)) return null;
+
+  const candidates = [];
+  for (const fx of fixtures){
+    if (!fixtureHasConcreteTeams(fx)) continue;
+    const diffMin = fixtureKickoffDiffMinutes(dbMatch, fx);
+    if (diffMin === null || diffMin > 120) continue;
+    if (!stageMatchesFixtureRound(dbMatch, fx)) continue;
+
+    const score = scoreFixtureMatch(dbMatch, fx);
+    candidates.push({ fx, score, diffMin });
+  }
+
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.score - a.score || a.diffMin - b.diffMin);
+  const best = candidates[0];
+  const second = candidates[1];
+
+  // Play-off kohatäidete puhul seome mängu API fixture'iga ainult siis,
+  // kui vaste on kindel: aeg + voor klapivad ja sama tugevusega duplikaati pole.
+  if (best.score < 8) return null;
+  if (second && second.score === best.score && Math.abs(second.diffMin - best.diffMin) <= 5) return null;
+
+  return best.fx;
 }
 
 function chooseFixtureForMatch(dbMatch, fixtures){
@@ -1663,7 +1717,9 @@ function chooseFixtureForMatch(dbMatch, fixtures){
     return fixtures.find(fx => Number(fx?.fixture?.id) === Number(dbMatch.api_football_fixture_id)) || null;
   }
 
-  if (isPlaceholderTeam(dbMatch.home) || isPlaceholderTeam(dbMatch.away)) return null;
+  if (isPlaceholderTeam(dbMatch.home) || isPlaceholderTeam(dbMatch.away)) {
+    return chooseFixtureForPlaceholderPlayoffMatch(dbMatch, fixtures);
+  }
 
   const candidates = [];
   for (const fx of fixtures){
@@ -1745,13 +1801,21 @@ async function syncApiFootballResults(sb, { force=false } = {}){
       patch.api_football_fixture_id = fxId;
     }
 
+    const apiHomeName = fx?.teams?.home?.name ? String(fx.teams.home.name).trim() : "";
+    const apiAwayName = fx?.teams?.away?.name ? String(fx.teams.away.name).trim() : "";
+    if (isPlayoffMatch(match) && fixtureHasConcreteTeams(fx)){
+      if (isPlaceholderTeam(match.home) && apiHomeName) patch.home = apiHomeName;
+      if (isPlaceholderTeam(match.away) && apiAwayName) patch.away = apiAwayName;
+    }
+
     if (apiFixtureFinished(fx)){
       const statusShort = fx?.fixture?.status?.short || "";
       const wentExtra = statusShort === "AET" || statusShort === "PEN";
       const homeGoals = fx?.score?.fulltime?.home ?? fx?.goals?.home;
       const awayGoals = fx?.score?.fulltime?.away ?? fx?.goals?.away;
       if (homeGoals !== null && awayGoals !== null && homeGoals !== undefined && awayGoals !== undefined){
-        const advancingTeam = fixtureAdvancingTeamForMatch(match, fx);
+        const effectiveMatch = { ...match, ...patch };
+        const advancingTeam = fixtureAdvancingTeamForMatch(effectiveMatch, fx);
 
         patch.final_home = homeGoals;
         patch.final_away = awayGoals;
@@ -1766,6 +1830,8 @@ async function syncApiFootballResults(sb, { force=false } = {}){
           match.went_extra !== wentExtra ||
           match.status_short !== statusShort ||
           (advancingTeam && match.advancing_team !== advancingTeam) ||
+          (patch.home && match.home !== patch.home) ||
+          (patch.away && match.away !== patch.away) ||
           !match.is_finished;
 
         if (Object.keys(patch).length){
@@ -1780,7 +1846,8 @@ async function syncApiFootballResults(sb, { force=false } = {}){
         }
       }
     } else if (Object.keys(patch).length){
-      await sb.from("matches").update(patch).eq("id", match.id);
+      const upd = await sb.from("matches").update(patch).eq("id", match.id);
+      if (!upd.error) updated += 1;
     }
   }
 
