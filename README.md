@@ -516,3 +516,8 @@ See tähendab, et pärast õige vastuse salvestamist ja punktide arvutust ei saa
 ## Admin lisaküsimuste lukustuse checkbox
 
 Admini lisaküsimuste halduses on nüüd õige vastuse kõrval selgelt nähtav `Lukus` checkbox. Kui see on märgitud, siis kasutaja näeb oma vastust, aga ei saa seda muuta. Õige vastuse määramine lukustab kasutajavaates küsimuse samuti kontrollitud olekusse.
+
+
+## Viimane parandus
+
+Admini lisaküsimuste halduse `Lukus` checkbox on desktop-vaates tehtud kompaktseks pill-nupuks, et see ei venitaks küsimuse kontrollirida laiaks. Loogikat, SQL-i ega punkte ei muudetud.

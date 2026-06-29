@@ -99,10 +99,10 @@
     .answer-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,260px);gap:10px;align-items:center;margin-top:10px}
     .admin-bonus-card{border-color:rgba(74,144,226,.35)}
     .admin-bonus-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-    .admin-bonus-control{display:grid;grid-template-columns:minmax(220px,1.4fr) 130px 74px minmax(220px,1fr) minmax(130px,auto) auto auto;gap:8px;align-items:end;margin-top:10px}
+    .admin-bonus-control{display:grid;grid-template-columns:minmax(220px,1.4fr) 130px 74px minmax(220px,1fr) max-content auto auto;gap:8px;align-items:end;margin-top:10px}
     .admin-bonus-control label{display:flex;flex-direction:column;gap:4px;min-width:0}
     .admin-bonus-control input,.admin-bonus-control select{width:100%;box-sizing:border-box}
-    .admin-bonus-lock{align-self:end;display:flex!important;flex-direction:row!important;align-items:center;justify-content:center;gap:8px!important;white-space:nowrap;border:1px solid rgba(255,210,80,.45);background:rgba(255,210,80,.12);border-radius:12px;padding:9px 10px;font-weight:900;color:#fde68a;min-height:39px;box-sizing:border-box}.admin-bonus-lock input{width:auto!important;transform:scale(1.15)}.admin-bonus-lock .admin-bonus-lock-text{line-height:1.1}
+    .admin-bonus-lock{align-self:end;justify-self:start;display:inline-flex!important;flex-direction:row!important;align-items:center;justify-content:flex-start;gap:7px!important;white-space:nowrap;border:1px solid rgba(255,210,80,.45);background:rgba(255,210,80,.12);border-radius:999px;padding:8px 10px;font-weight:900;color:#fde68a;min-height:36px;width:auto!important;max-width:max-content;box-sizing:border-box}.admin-bonus-lock input{width:16px!important;min-width:16px!important;max-width:16px!important;height:16px!important;flex:0 0 16px;margin:0;transform:none}.admin-bonus-lock .admin-bonus-lock-text{line-height:1.1;font-size:13px}
     .admin-bonus-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
     .admin-bonus-stats span{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.04)}
     .admin-user-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
