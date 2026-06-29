@@ -521,3 +521,7 @@ Admini lisaküsimuste halduses on nüüd õige vastuse kõrval selgelt nähtav `
 ## Viimane parandus
 
 Admini lisaküsimuste halduse `Lukus` checkbox on desktop-vaates tehtud kompaktseks pill-nupuks, et see ei venitaks küsimuse kontrollirida laiaks. Loogikat, SQL-i ega punkte ei muudetud.
+
+## Admin lisaküsimuste lukustus
+
+`Lukus` checkbox salvestub nüüd kohe muutmisel. Kui admin märgib küsimuse lukku, näeb kasutaja enda vastust edasi, aga ei saa seda enam muuta. Server lükkab lukus küsimuse muutmiskatse tagasi ka siis, kui request saadetakse käsitsi.

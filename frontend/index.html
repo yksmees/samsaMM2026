@@ -1627,7 +1627,7 @@ async function loadAdminBonus(){
           <button type="button" data-bq-del="${q.id}">Kustuta</button>
         </div>
         <div class="admin-bonus-stats"><span>Õigeid: ${correctCount}</span><span>Valesid: ${wrongCount}</span><span>Vastamata: ${emptyCount}</span><span>Punkte kokku: ${totalPoints}</span></div>
-        <div class="mini" style="margin-top:6px">Automaatne kontroll võrdleb kasutaja vastuse tehnilist väärtust siin valitud õige vastusega. Kui märgid "Lukus", näeb kasutaja oma vastust, aga muuta enam ei saa. Üksiku kasutaja parandamine on all tab’idega detailvaates.</div>
+        <div class="mini" style="margin-top:6px">Automaatne kontroll võrdleb kasutaja vastuse tehnilist väärtust siin valitud õige vastusega. Kui märgid "Lukus", salvestub lukustus kohe: kasutaja näeb oma vastust, aga muuta enam ei saa. Üksiku kasutaja parandamine on all tab’idega detailvaates.</div>
       </div>`;
     }).join("");
 
@@ -1635,6 +1635,7 @@ async function loadAdminBonus(){
 
     box.querySelectorAll("button[data-bq-save]").forEach(btn => btn.onclick = () => saveAdminQuestion(btn.dataset.bqSave));
     box.querySelectorAll("button[data-bq-del]").forEach(btn => btn.onclick = () => deleteAdminQuestion(btn.dataset.bqDel));
+    box.querySelectorAll("input[data-bq-lock]").forEach(cb => cb.onchange = () => saveAdminQuestionLock(cb.dataset.bqLock, cb.checked));
     tabs.querySelectorAll("button[data-bonus-player]").forEach(btn => btn.onclick = () => {
       adminBonusActivePlayerKey = btn.dataset.bonusPlayer;
       renderAdminBonusUserTabs(questions, answersByPlayer);
@@ -1685,6 +1686,18 @@ function renderAdminBonusUserTabs(questions, answersByPlayer){
 function sourceForType(type){
   return type === "team" ? "teams" : type === "player" ? "players" : type === "number" ? "0_20" : type === "registered_user" ? "registered_users" : "text";
 }
+async function saveAdminQuestionLock(id, locked){
+  try{
+    await call(`admin/bonus/questions/${id}`, { method:"PUT", body:JSON.stringify({ is_locked:!!locked }) });
+    setMsg($("adminBonusMsg"), true, locked ? "Küsimus lukustatud." : "Küsimus avatud.");
+    await loadAdminBonus();
+    await loadBonus();
+  }catch(e){
+    setMsg($("adminBonusMsg"), false, e.message);
+    await loadAdminBonus();
+  }
+}
+
 async function saveAdminQuestion(id){
   try{
     const type = document.querySelector(`[data-bq-type="${id}"]`).value;
