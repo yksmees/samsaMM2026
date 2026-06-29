@@ -2679,7 +2679,8 @@ if (event.httpMethod === "POST" && route === "bonus/answers") {
   for (const item of items){
     const q = qMap.get(Number(item.question_id));
     if (!q) continue;
-    if (q.is_locked) { lockedAttemptCount += 1; continue; }
+    const questionLocked = q.is_locked === true || String(q.is_locked).toLowerCase() === "true";
+    if (questionLocked) { lockedAttemptCount += 1; continue; }
     const answer_value = String(item.answer_value ?? "").trim();
     const answer_text = String(item.answer_text ?? answer_value).trim();
     const hasCorrect = !!q.correct_answer_value;

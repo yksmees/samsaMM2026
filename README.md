@@ -498,3 +498,8 @@ SQL-i ei ole vaja.
 ## Lisaküsimuste lukus vaate täpsustus
 
 Lukus lisaküsimused jäävad kasutajale nähtavaks koos tema salvestatud vastusega. Vastuse väli on mitteaktiivne ning lisaks kuvatakse lukus küsimuse juures eraldi read-only tekst `Vastus: ...`, et kasutaja näeks oma sisestatud vastust ka siis, kui brauser kuvab disabled inputi tagasihoidlikult.
+
+
+## Lisaküsimuste lukus vastuste kuvamise parandus
+
+Lukus lisaküsimuse puhul ei renderdata kasutajale enam muudetavat input/datalist välja. Kasutaja näeb oma varasemat vastust read-only kujul ja küsimuse märget `Lukus`, aga uut vastust sisestada ega salvestada ei saa. Server kontrollib lukustust endiselt üle ja tagastab vea, kui lukus küsimusele proovitakse vastust saata.

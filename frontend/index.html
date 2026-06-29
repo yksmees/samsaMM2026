@@ -430,7 +430,23 @@
       .prediction-panel{padding:9px}
     }
 
-  </style>
+  
+.readonly-bonus-answer {
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148,163,184,.28);
+  background: rgba(15,23,42,.55);
+  color: #f8fafc;
+  font-weight: 800;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+}
+.locked-question input, .locked-question button {
+  pointer-events: none;
+}
+
+</style>
 </head>
 <body>
   
@@ -1513,15 +1529,18 @@ async function loadBonus(){
       const a = answerMap.get(Number(q.id));
       const opts = optionsForQuestion(q, bonusData);
       const savedText = String(a?.answer_text || a?.answer_value || "").trim();
-      const input = q.answer_type === "text"
-        ? `<input data-bonus="${q.id}" value="${escapeHtml(savedText)}" placeholder="Vastus" ${q.is_locked ? "disabled" : ""}>`
-        : searchableInputHtml("bonus", q.id, opts, a?.answer_value || "", savedText, q.answer_type === "player" ? "Kirjuta nimi" : "Kirjuta ja vali", q.is_locked);
-      const lockedAnswer = q.is_locked
+      const isLocked = q.is_locked === true || String(q.is_locked).toLowerCase() === "true";
+      const lockedAnswer = isLocked
         ? `<div class="locked-answer-view"><span>Vastus:</span> <strong>${escapeHtml(savedText || "Vastamata")}</strong></div>`
         : "";
-      return `<div class="answer-grid ${q.is_locked ? "locked-question" : ""}"><div><strong>${escapeHtml(q.question_text)}</strong>${q.is_locked ? `<div class="mini locked-badge">Lukus</div>` : ""}${lockedAnswer}</div><div>${input}</div></div>`;
+      const input = isLocked
+        ? `<div class="readonly-bonus-answer" data-bonus-readonly="${q.id}">${escapeHtml(savedText || "Vastamata")}</div>`
+        : (q.answer_type === "text"
+          ? `<input data-bonus="${q.id}" value="${escapeHtml(savedText)}" placeholder="Vastus">`
+          : searchableInputHtml("bonus", q.id, opts, a?.answer_value || "", savedText, q.answer_type === "player" ? "Kirjuta nimi" : "Kirjuta ja vali", false));
+      return `<div class="answer-grid ${isLocked ? "locked-question" : ""}"><div><strong>${escapeHtml(q.question_text)}</strong>${isLocked ? `<div class="mini locked-badge">Lukus</div>` : ""}${lockedAnswer}</div><div>${input}</div></div>`;
     }).join("");
-    const unlockedCount = (bonusData.questions || []).filter(q => !q.is_locked).length;
+    const unlockedCount = (bonusData.questions || []).filter(q => !(q.is_locked === true || String(q.is_locked).toLowerCase() === "true")).length;
     const lockedNote = unlockedCount ? "" : `<div class="mini" style="margin-top:10px">Lisaküsimused on lukus. Vastuseid saab vaadata, aga enam muuta ei saa.</div>`;
     box.innerHTML = rows + lockedNote + `<div class="row" style="margin-top:14px"><button id="btnSaveBonus" class="primary" type="button" ${unlockedCount ? "" : "disabled"}>Salvesta lisaküsimused</button></div>`;
     $("btnSaveBonus").onclick = saveBonusAnswers;
@@ -1534,7 +1553,7 @@ async function saveBonusAnswers(){
   try{
     const answers = [];
     for (const q of bonusData.questions || []){
-      if (q.is_locked) continue;
+      if (q.is_locked === true || String(q.is_locked).toLowerCase() === "true") continue;
       const el = document.querySelector(`[data-bonus="${q.id}"]`);
       if (!el) continue;
       const typed = el.value;
