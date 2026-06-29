@@ -1512,12 +1512,18 @@ async function loadBonus(){
     const rows = (bonusData.questions || []).map(q => {
       const a = answerMap.get(Number(q.id));
       const opts = optionsForQuestion(q, bonusData);
+      const savedText = String(a?.answer_text || a?.answer_value || "").trim();
       const input = q.answer_type === "text"
-        ? `<input data-bonus="${q.id}" value="${escapeHtml(a?.answer_text || "")}" placeholder="Vastus" ${q.is_locked ? "disabled" : ""}>`
-        : searchableInputHtml("bonus", q.id, opts, a?.answer_value || "", a?.answer_text || "", q.answer_type === "player" ? "Kirjuta nimi" : "Kirjuta ja vali", q.is_locked);
-      return `<div class="answer-grid"><div><strong>${escapeHtml(q.question_text)}</strong>${q.is_locked ? `<div class="mini">Lukus</div>` : ""}</div><div>${input}</div></div>`;
+        ? `<input data-bonus="${q.id}" value="${escapeHtml(savedText)}" placeholder="Vastus" ${q.is_locked ? "disabled" : ""}>`
+        : searchableInputHtml("bonus", q.id, opts, a?.answer_value || "", savedText, q.answer_type === "player" ? "Kirjuta nimi" : "Kirjuta ja vali", q.is_locked);
+      const lockedAnswer = q.is_locked
+        ? `<div class="locked-answer-view"><span>Vastus:</span> <strong>${escapeHtml(savedText || "Vastamata")}</strong></div>`
+        : "";
+      return `<div class="answer-grid ${q.is_locked ? "locked-question" : ""}"><div><strong>${escapeHtml(q.question_text)}</strong>${q.is_locked ? `<div class="mini locked-badge">Lukus</div>` : ""}${lockedAnswer}</div><div>${input}</div></div>`;
     }).join("");
-    box.innerHTML = rows + `<div class="row" style="margin-top:14px"><button id="btnSaveBonus" class="primary" type="button">Salvesta lisaküsimused</button></div>`;
+    const unlockedCount = (bonusData.questions || []).filter(q => !q.is_locked).length;
+    const lockedNote = unlockedCount ? "" : `<div class="mini" style="margin-top:10px">Lisaküsimused on lukus. Vastuseid saab vaadata, aga enam muuta ei saa.</div>`;
+    box.innerHTML = rows + lockedNote + `<div class="row" style="margin-top:14px"><button id="btnSaveBonus" class="primary" type="button" ${unlockedCount ? "" : "disabled"}>Salvesta lisaküsimused</button></div>`;
     $("btnSaveBonus").onclick = saveBonusAnswers;
   }catch(e){
     setMsg($("bonusMsg"), false, e.message);
@@ -1528,6 +1534,7 @@ async function saveBonusAnswers(){
   try{
     const answers = [];
     for (const q of bonusData.questions || []){
+      if (q.is_locked) continue;
       const el = document.querySelector(`[data-bonus="${q.id}"]`);
       if (!el) continue;
       const typed = el.value;
@@ -1541,6 +1548,7 @@ async function saveBonusAnswers(){
       }
       if (value) answers.push({ question_id:q.id, answer_value:value, answer_text:text });
     }
+    if (!answers.length) throw new Error("Lisaküsimused on lukus või salvestatavaid vastuseid ei ole.");
     await call("bonus/answers", { method:"POST", body:JSON.stringify({ answers }) });
     setMsg($("bonusMsg"), true, "Lisaküsimused salvestatud.");
     await loadLeaderboard();

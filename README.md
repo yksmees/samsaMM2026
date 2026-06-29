@@ -494,3 +494,7 @@ Admini sync ja cron vastus sisaldavad lisavälju:
 - `ignored_non_worldcup_fixtures`
 
 SQL-i ei ole vaja.
+
+## Lisaküsimuste lukus vaate täpsustus
+
+Lukus lisaküsimused jäävad kasutajale nähtavaks koos tema salvestatud vastusega. Vastuse väli on mitteaktiivne ning lisaks kuvatakse lukus küsimuse juures eraldi read-only tekst `Vastus: ...`, et kasutaja näeks oma sisestatud vastust ka siis, kui brauser kuvab disabled inputi tagasihoidlikult.

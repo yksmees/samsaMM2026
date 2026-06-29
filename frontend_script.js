@@ -75,6 +75,16 @@ function matchAdvancer(row){
   return "";
 }
 function isPlayoff(row){ return Number(row?.match_no || 0) >= 73; }
+function isPlaceholderTeamName(name){
+  const s = String(name || "").trim();
+  if (!s) return true;
+  const n = s.toLowerCase();
+  if (["tbd", "to be decided", "to be confirmed", "unknown"].includes(n)) return true;
+  return /^[WL]\d+$/i.test(s) || /^[123][A-Z]+$/i.test(s) || /^[12][A-L]$/i.test(s) || /^3[A-Z]+$/i.test(s);
+}
+function isVisibleToUsersMatch(row){
+  return !isPlayoff(row) || (!isPlaceholderTeamName(row?.home) && !isPlaceholderTeamName(row?.away));
+}
 function sortMatchesForPredictions(matches){
   return [...(matches || [])].sort((a,b)=>{
     const at = a?.kickoff_utc ? new Date(a.kickoff_utc).getTime() : Number.POSITIVE_INFINITY;
@@ -278,7 +288,7 @@ async function loadMatchesAndPreds(){
     const map = new Map((p.predictions||[]).map(x=>[x.match_id, x]));
     const publicMap = pub.predictions_by_match || {};
     populateAdminMatchSelects(m.matches || []);
-    const matches = sortMatchesForPredictions(m.matches || []);
+    const matches = sortMatchesForPredictions((m.matches || []).filter(isVisibleToUsersMatch));
     const hasFinished = matches.some(row => !!(row.is_finished || finalScoreText(row)));
     const toggleBtn = $("toggleFinishedMatches");
     if (toggleBtn) {
@@ -461,7 +471,13 @@ async function loadOthersView(){
   try{
     const data = await call("predictions/matrix",{method:"GET"});
     const players = (data.players || []).sort((a,b)=>String(a.display_name || "").localeCompare(String(b.display_name || ""), "et"));
-    const matches = (data.matches || []).sort((a,b)=>a.match_no-b.match_no);
+    const sortNewestFirst = (a,b) => {
+      const ta = Date.parse(a.kickoff_utc || a.kickoff || a.kickoff_time || "") || 0;
+      const tb = Date.parse(b.kickoff_utc || b.kickoff || b.kickoff_time || "") || 0;
+      if (tb !== ta) return tb - ta;
+      return Number(b.match_no || 0) - Number(a.match_no || 0);
+    };
+    const matches = (data.matches || []).slice().sort(sortNewestFirst);
     const predictions = data.predictions || [];
 
     const predMap = new Map();
@@ -476,7 +492,7 @@ async function loadOthersView(){
     buildOthersMatrix(playoffHead, playoffBody, playoffMatches, players, predMap);
 
     if (!groupMatches.length && !playoffMatches.length){
-      $("othersMsg").textContent = "Kui mängud lõppevad, tekivad need siia mängu numbri järjekorras.";
+      $("othersMsg").textContent = "Kui mängud lukku lähevad või lõppevad, tekivad need siia kõige värskem mäng vasakul.";
     }
   }catch(e){
     setMsg($("othersMsg"), false, e.message);
@@ -706,12 +722,18 @@ async function loadBonus(){
     const rows = (bonusData.questions || []).map(q => {
       const a = answerMap.get(Number(q.id));
       const opts = optionsForQuestion(q, bonusData);
+      const savedText = String(a?.answer_text || a?.answer_value || "").trim();
       const input = q.answer_type === "text"
-        ? `<input data-bonus="${q.id}" value="${escapeHtml(a?.answer_text || "")}" placeholder="Vastus" ${q.is_locked ? "disabled" : ""}>`
-        : searchableInputHtml("bonus", q.id, opts, a?.answer_value || "", a?.answer_text || "", q.answer_type === "player" ? "Kirjuta nimi" : "Kirjuta ja vali", q.is_locked);
-      return `<div class="answer-grid"><div><strong>${escapeHtml(q.question_text)}</strong>${q.is_locked ? `<div class="mini">Lukus</div>` : ""}</div><div>${input}</div></div>`;
+        ? `<input data-bonus="${q.id}" value="${escapeHtml(savedText)}" placeholder="Vastus" ${q.is_locked ? "disabled" : ""}>`
+        : searchableInputHtml("bonus", q.id, opts, a?.answer_value || "", savedText, q.answer_type === "player" ? "Kirjuta nimi" : "Kirjuta ja vali", q.is_locked);
+      const lockedAnswer = q.is_locked
+        ? `<div class="locked-answer-view"><span>Vastus:</span> <strong>${escapeHtml(savedText || "Vastamata")}</strong></div>`
+        : "";
+      return `<div class="answer-grid ${q.is_locked ? "locked-question" : ""}"><div><strong>${escapeHtml(q.question_text)}</strong>${q.is_locked ? `<div class="mini locked-badge">Lukus</div>` : ""}${lockedAnswer}</div><div>${input}</div></div>`;
     }).join("");
-    box.innerHTML = rows + `<div class="row" style="margin-top:14px"><button id="btnSaveBonus" class="primary" type="button">Salvesta lisaküsimused</button></div>`;
+    const unlockedCount = (bonusData.questions || []).filter(q => !q.is_locked).length;
+    const lockedNote = unlockedCount ? "" : `<div class="mini" style="margin-top:10px">Lisaküsimused on lukus. Vastuseid saab vaadata, aga enam muuta ei saa.</div>`;
+    box.innerHTML = rows + lockedNote + `<div class="row" style="margin-top:14px"><button id="btnSaveBonus" class="primary" type="button" ${unlockedCount ? "" : "disabled"}>Salvesta lisaküsimused</button></div>`;
     $("btnSaveBonus").onclick = saveBonusAnswers;
   }catch(e){
     setMsg($("bonusMsg"), false, e.message);
@@ -722,6 +744,7 @@ async function saveBonusAnswers(){
   try{
     const answers = [];
     for (const q of bonusData.questions || []){
+      if (q.is_locked) continue;
       const el = document.querySelector(`[data-bonus="${q.id}"]`);
       if (!el) continue;
       const typed = el.value;
@@ -735,6 +758,7 @@ async function saveBonusAnswers(){
       }
       if (value) answers.push({ question_id:q.id, answer_value:value, answer_text:text });
     }
+    if (!answers.length) throw new Error("Lisaküsimused on lukus või salvestatavaid vastuseid ei ole.");
     await call("bonus/answers", { method:"POST", body:JSON.stringify({ answers }) });
     setMsg($("bonusMsg"), true, "Lisaküsimused salvestatud.");
     await loadLeaderboard();

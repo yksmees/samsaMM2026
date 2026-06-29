@@ -2675,16 +2675,20 @@ if (event.httpMethod === "POST" && route === "bonus/answers") {
   if (qRes.error) return json(500, { error:qRes.error.message });
   const qMap = new Map((qRes.data || []).map(q => [q.id, q]));
   const payload = [];
+  let lockedAttemptCount = 0;
   for (const item of items){
     const q = qMap.get(Number(item.question_id));
-    if (!q || q.is_locked) continue;
+    if (!q) continue;
+    if (q.is_locked) { lockedAttemptCount += 1; continue; }
     const answer_value = String(item.answer_value ?? "").trim();
     const answer_text = String(item.answer_text ?? answer_value).trim();
     const hasCorrect = !!q.correct_answer_value;
     const is_correct = hasCorrect ? normalizeAnswerValue(answer_value) === normalizeAnswerValue(q.correct_answer_value) : false;
     payload.push({ player_id:u.sub, question_id:q.id, answer_value, answer_text, is_correct, points:is_correct ? Number(q.points || 1) : 0 });
   }
-  if (!payload.length) return json(400, { error:"Ühtegi salvestatavat vastust ei olnud." });
+  if (!payload.length) {
+    return json(lockedAttemptCount ? 403 : 400, { error: lockedAttemptCount ? "Lisaküsimused on lukus ja vastuseid ei saa enam muuta." : "Ühtegi salvestatavat vastust ei olnud." });
+  }
   const up = await sb.from("bonus_answers").upsert(payload, { onConflict:"player_id,question_id" }).select("*");
   if (up.error) return json(500, { error:up.error.message });
   return json(200, { ok:true, answers:up.data || [] });
