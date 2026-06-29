@@ -1672,6 +1672,23 @@ function fixtureKickoffDiffMinutes(dbMatch, fx){
   return Math.abs(dbKick - fxKick) / 60000;
 }
 
+function trustedFixtureKickoffPatch(match, fx){
+  if (!isApiFootballWorldCup2026Fixture(fx)) return null;
+  const apiKickoff = fx?.fixture?.date ? new Date(fx.fixture.date) : null;
+  if (!apiKickoff || Number.isNaN(apiKickoff.getTime())) return null;
+
+  const currentKickoff = match?.kickoff_utc ? new Date(match.kickoff_utc) : null;
+  if (currentKickoff && !Number.isNaN(currentKickoff.getTime())){
+    const diffMin = Math.abs(currentKickoff.getTime() - apiKickoff.getTime()) / 60000;
+    // Ära lase vale või liiga kauge fixture'i ajal mängu üle kirjutada.
+    // chooseFixtureForMatch on juba valinud kindla FIFA WC 2026 vaste, aga hoiame ka siin kaitse peal.
+    if (diffMin > 120) return null;
+    if (diffMin < 1) return null;
+  }
+
+  return apiKickoff.toISOString();
+}
+
 function fixtureTeamsMatch(dbMatch, fx){
   const dbHome = normalizeTeamName(dbMatch.home);
   const dbAway = normalizeTeamName(dbMatch.away);
@@ -1722,10 +1739,17 @@ function chooseFixtureForPlaceholderPlayoffMatch(dbMatch, fixtures){
   const best = candidates[0];
   const second = candidates[1];
 
-  // Play-off kohatäidete puhul seome mängu API fixture'iga ainult siis,
-  // kui vaste on kindel: aeg + voor klapivad ja sama tugevusega duplikaati pole.
-  if (best.score < 8) return null;
+  // Play-off kohatäidete puhul ei saa tiiminime järgi punkte anda, sest DB-s on veel 2E/W73 vms.
+  // Round of 32 kindlate API paaride puhul piisab turvaliseks sidumiseks league=1, season=2026,
+  // sama voor, lähedane algusaeg ja vajadusel staadion. Varasem 8 punkti piir jättis näiteks
+  // Ivory Coast vs Norway peitu, sest placeholderi puhul ei saagi +10 tiimiskoori tulla.
+  const isRoundOf32 = stageRoundKey(dbMatch?.stage) === "round32";
+  const minScore = isRoundOf32 ? 5 : 6;
+  if (best.score < minScore) return null;
+
+  // Kui kaks API fixture'it on sama tugevad või ajaliselt liiga lähestikku, ära riski vale vastega.
   if (second && second.score === best.score && Math.abs(second.diffMin - best.diffMin) <= 5) return null;
+  if (second && isRoundOf32 && Math.abs(second.diffMin - best.diffMin) <= 30 && second.score >= best.score - 1) return null;
 
   return best.fx;
 }
@@ -1840,6 +1864,7 @@ async function syncApiFootballResults(sb, { force=false } = {}){
   let updated = 0;
   let playoffTeamsUpdated = 0;
   let placeholderCleaned = 0;
+  let playoffPendingHidden = 0;
   const ignoredNonWorldCup = fetched.ignoredNonWorldCup || 0;
   const matches = matchesRes.data || [];
   const matchesByNo = new Map(matches.map(m => [Number(m.match_no), m]));
@@ -1848,6 +1873,9 @@ async function syncApiFootballResults(sb, { force=false } = {}){
     if (match.manual_result_override) continue;
 
     const patch = {};
+    if (isPlayoffMatch(match) && (isPlaceholderTeam(match.home) || isPlaceholderTeam(match.away))) {
+      playoffPendingHidden += 1;
+    }
 
     // Round of 16 ja edasi: W73/L101 tüüpi kohatäited saab täita bracketi järgi,
     // aga ainult siis, kui allikmäng on lõppenud ja võitja/kaotaja on kindlalt teada.
@@ -1894,6 +1922,11 @@ async function syncApiFootballResults(sb, { force=false } = {}){
     const fxId = Number(fx?.fixture?.id);
     if (fxId && Number(match.api_football_fixture_id) !== fxId){
       patch.api_football_fixture_id = fxId;
+    }
+
+    const apiKickoffUtc = trustedFixtureKickoffPatch(match, fx);
+    if (apiKickoffUtc && apiKickoffUtc !== match.kickoff_utc){
+      patch.kickoff_utc = apiKickoffUtc;
     }
 
     const apiHomeName = fx?.teams?.home?.name ? String(fx.teams.home.name).trim() : "";
@@ -1953,7 +1986,7 @@ async function syncApiFootballResults(sb, { force=false } = {}){
     }
   }
 
-  return { ok:true, updated, fixtures: fixtures.length, playoffTeamsUpdated, placeholderCleaned, ignoredNonWorldCup };
+  return { ok:true, updated, fixtures: fixtures.length, playoffTeamsUpdated, placeholderCleaned, playoffPendingHidden, ignoredNonWorldCup };
 }
 
 
@@ -1993,7 +2026,7 @@ async function netlifyHandler(event) {
       const sb = sbAdmin();
       const sync = await syncApiFootballResults(sb, { force:true });
       if (!sync.ok) return json(500, { ok:false, error: sync.error || "Tulemuste sünkroniseerimine ebaõnnestus." });
-      return json(200, { ok:true, source:"cron", updated: sync.updated || 0, fixtures: sync.fixtures || 0, skipped: !!sync.skipped, reason: sync.reason || "", playoff_teams_updated: sync.playoffTeamsUpdated || 0, placeholder_cleaned: sync.placeholderCleaned || 0, ignored_non_worldcup_fixtures: sync.ignoredNonWorldCup || 0 });
+      return json(200, { ok:true, source:"cron", updated: sync.updated || 0, fixtures: sync.fixtures || 0, skipped: !!sync.skipped, reason: sync.reason || "", playoff_teams_updated: sync.playoffTeamsUpdated || 0, placeholder_cleaned: sync.placeholderCleaned || 0, ignored_non_worldcup_fixtures: sync.ignoredNonWorldCup || 0, playoff_pending_hidden: sync.playoffPendingHidden || 0 });
     }
 
     if (event.httpMethod === "GET" && route === "health") {
@@ -2135,7 +2168,7 @@ if (event.httpMethod === "GET" && route === "me") {
       if (!u || !u.is_admin) return json(403, { error: "Admini õigused puuduvad." });
       const sync = await syncApiFootballResults(sb, { force:true });
       if (!sync.ok) return json(500, { error: sync.error || "Tulemuste sünkroniseerimine ebaõnnestus." });
-      return json(200, { ok:true, updated: sync.updated || 0, fixtures: sync.fixtures || 0, skipped: !!sync.skipped, reason: sync.reason || "", playoff_teams_updated: sync.playoffTeamsUpdated || 0, placeholder_cleaned: sync.placeholderCleaned || 0, ignored_non_worldcup_fixtures: sync.ignoredNonWorldCup || 0 });
+      return json(200, { ok:true, updated: sync.updated || 0, fixtures: sync.fixtures || 0, skipped: !!sync.skipped, reason: sync.reason || "", playoff_teams_updated: sync.playoffTeamsUpdated || 0, placeholder_cleaned: sync.placeholderCleaned || 0, ignored_non_worldcup_fixtures: sync.ignoredNonWorldCup || 0, playoff_pending_hidden: sync.playoffPendingHidden || 0 });
     }
 
     // Admin seed matches (idempotent upsert by match_no)
