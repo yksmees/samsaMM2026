@@ -503,3 +503,16 @@ Lukus lisaküsimused jäävad kasutajale nähtavaks koos tema salvestatud vastus
 ## Lisaküsimuste lukus vastuste kuvamise parandus
 
 Lukus lisaküsimuse puhul ei renderdata kasutajale enam muudetavat input/datalist välja. Kasutaja näeb oma varasemat vastust read-only kujul ja küsimuse märget `Lukus`, aga uut vastust sisestada ega salvestada ei saa. Server kontrollib lukustust endiselt üle ja tagastab vea, kui lukus küsimusele proovitakse vastust saata.
+
+
+## Bonus lock hard guard
+
+Lisaküsimuse kasutajavaade on nüüd read-only kahel juhul:
+- küsimusel on `is_locked = true`;
+- küsimusele on adminis juba määratud `correct_answer_value`.
+
+See tähendab, et pärast õige vastuse salvestamist ja punktide arvutust ei saa kasutaja enam sama lisaküsimuse vastust muuta isegi siis, kui admin unustas lukus checkboxi märkida. Vastus jääb kasutajale nähtavaks.
+
+## Admin lisaküsimuste lukustuse checkbox
+
+Admini lisaküsimuste halduses on nüüd õige vastuse kõrval selgelt nähtav `Lukus` checkbox. Kui see on märgitud, siis kasutaja näeb oma vastust, aga ei saa seda muuta. Õige vastuse määramine lukustab kasutajavaates küsimuse samuti kontrollitud olekusse.

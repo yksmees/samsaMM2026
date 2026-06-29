@@ -99,10 +99,10 @@
     .answer-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,260px);gap:10px;align-items:center;margin-top:10px}
     .admin-bonus-card{border-color:rgba(74,144,226,.35)}
     .admin-bonus-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-    .admin-bonus-control{display:grid;grid-template-columns:minmax(220px,1.4fr) 130px 74px minmax(220px,1fr) auto auto auto;gap:8px;align-items:end;margin-top:10px}
+    .admin-bonus-control{display:grid;grid-template-columns:minmax(220px,1.4fr) 130px 74px minmax(220px,1fr) minmax(130px,auto) auto auto;gap:8px;align-items:end;margin-top:10px}
     .admin-bonus-control label{display:flex;flex-direction:column;gap:4px;min-width:0}
     .admin-bonus-control input,.admin-bonus-control select{width:100%;box-sizing:border-box}
-    .admin-bonus-lock{align-self:center;flex-direction:row!important;gap:6px!important;white-space:nowrap}
+    .admin-bonus-lock{align-self:end;display:flex!important;flex-direction:row!important;align-items:center;justify-content:center;gap:8px!important;white-space:nowrap;border:1px solid rgba(255,210,80,.45);background:rgba(255,210,80,.12);border-radius:12px;padding:9px 10px;font-weight:900;color:#fde68a;min-height:39px;box-sizing:border-box}.admin-bonus-lock input{width:auto!important;transform:scale(1.15)}.admin-bonus-lock .admin-bonus-lock-text{line-height:1.1}
     .admin-bonus-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
     .admin-bonus-stats span{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.04)}
     .admin-user-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
@@ -1519,6 +1519,12 @@ function optionsForQuestion(q, data){
   return [];
 }
 
+function isBonusQuestionClosed(q){
+  const locked = q?.is_locked === true || String(q?.is_locked).toLowerCase() === "true";
+  const hasCorrectAnswer = String(q?.correct_answer_value || "").trim() !== "";
+  return locked || hasCorrectAnswer;
+}
+
 async function loadBonus(){
   const box = $("bonusQuestions");
   if (!box || !token) return;
@@ -1529,7 +1535,7 @@ async function loadBonus(){
       const a = answerMap.get(Number(q.id));
       const opts = optionsForQuestion(q, bonusData);
       const savedText = String(a?.answer_text || a?.answer_value || "").trim();
-      const isLocked = q.is_locked === true || String(q.is_locked).toLowerCase() === "true";
+      const isLocked = isBonusQuestionClosed(q);
       const lockedAnswer = isLocked
         ? `<div class="locked-answer-view"><span>Vastus:</span> <strong>${escapeHtml(savedText || "Vastamata")}</strong></div>`
         : "";
@@ -1540,8 +1546,8 @@ async function loadBonus(){
           : searchableInputHtml("bonus", q.id, opts, a?.answer_value || "", savedText, q.answer_type === "player" ? "Kirjuta nimi" : "Kirjuta ja vali", false));
       return `<div class="answer-grid ${isLocked ? "locked-question" : ""}"><div><strong>${escapeHtml(q.question_text)}</strong>${isLocked ? `<div class="mini locked-badge">Lukus</div>` : ""}${lockedAnswer}</div><div>${input}</div></div>`;
     }).join("");
-    const unlockedCount = (bonusData.questions || []).filter(q => !(q.is_locked === true || String(q.is_locked).toLowerCase() === "true")).length;
-    const lockedNote = unlockedCount ? "" : `<div class="mini" style="margin-top:10px">Lisaküsimused on lukus. Vastuseid saab vaadata, aga enam muuta ei saa.</div>`;
+    const unlockedCount = (bonusData.questions || []).filter(q => !isBonusQuestionClosed(q)).length;
+    const lockedNote = unlockedCount ? "" : `<div class="mini" style="margin-top:10px">Lisaküsimused on lukus või juba kontrollitud. Vastuseid saab vaadata, aga enam muuta ei saa.</div>`;
     box.innerHTML = rows + lockedNote + `<div class="row" style="margin-top:14px"><button id="btnSaveBonus" class="primary" type="button" ${unlockedCount ? "" : "disabled"}>Salvesta lisaküsimused</button></div>`;
     $("btnSaveBonus").onclick = saveBonusAnswers;
   }catch(e){
@@ -1553,7 +1559,7 @@ async function saveBonusAnswers(){
   try{
     const answers = [];
     for (const q of bonusData.questions || []){
-      if (q.is_locked === true || String(q.is_locked).toLowerCase() === "true") continue;
+      if (isBonusQuestionClosed(q)) continue;
       const el = document.querySelector(`[data-bonus="${q.id}"]`);
       if (!el) continue;
       const typed = el.value;
@@ -1616,12 +1622,12 @@ async function loadAdminBonus(){
           <label><span class="mini">Tüüp</span><select data-bq-type="${q.id}"><option ${q.answer_type==="team"?"selected":""}>team</option><option ${q.answer_type==="player"?"selected":""}>player</option><option ${q.answer_type==="number"?"selected":""}>number</option><option ${q.answer_type==="registered_user"?"selected":""}>registered_user</option><option ${q.answer_type==="text"?"selected":""}>text</option></select></label>
           <label><span class="mini">Punkte</span><input class="small" data-bq-points="${q.id}" value="${q.points || 1}" placeholder="p"></label>
           <label><span class="mini">Õige vastus</span>${correctInput}</label>
-          <label class="admin-bonus-lock"><input type="checkbox" data-bq-lock="${q.id}" ${q.is_locked?"checked":""}> lukus</label>
+          <label class="admin-bonus-lock" title="Kui see on sees, siis kasutaja näeb oma vastust, aga muuta enam ei saa."><input type="checkbox" data-bq-lock="${q.id}" ${q.is_locked?"checked":""}><span class="admin-bonus-lock-text">Lukus</span></label>
           <button type="button" data-bq-save="${q.id}" class="primary">Salvesta ja arvuta punktid</button>
           <button type="button" data-bq-del="${q.id}">Kustuta</button>
         </div>
         <div class="admin-bonus-stats"><span>Õigeid: ${correctCount}</span><span>Valesid: ${wrongCount}</span><span>Vastamata: ${emptyCount}</span><span>Punkte kokku: ${totalPoints}</span></div>
-        <div class="mini" style="margin-top:6px">Automaatne kontroll võrdleb kasutaja vastuse tehnilist väärtust siin valitud õige vastusega. Üksiku kasutaja parandamine on all tab’idega detailvaates.</div>
+        <div class="mini" style="margin-top:6px">Automaatne kontroll võrdleb kasutaja vastuse tehnilist väärtust siin valitud õige vastusega. Kui märgid "Lukus", näeb kasutaja oma vastust, aga muuta enam ei saa. Üksiku kasutaja parandamine on all tab’idega detailvaates.</div>
       </div>`;
     }).join("");
 

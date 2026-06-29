@@ -238,6 +238,12 @@ function calcPoints(ph,pa,fh,fa, match=null, chosenAdvancer=null){
 function normalizeAnswerValue(value){
   return String(value ?? "").trim().toLowerCase();
 }
+
+function isBonusQuestionClosed(q){
+  const locked = q?.is_locked === true || String(q?.is_locked).toLowerCase() === "true";
+  const hasCorrectAnswer = String(q?.correct_answer_value || "").trim() !== "";
+  return locked || hasCorrectAnswer;
+}
 const DEFAULT_BONUS_QUESTIONS = [
   { question_text:"Milline koondis tuleb maailmameistriks?", answer_type:"team", options_source:"teams", points:1, sort_order:1 },
   { question_text:"Kes on turniiri suurim väravakütt?", answer_type:"player", options_source:"players", points:1, sort_order:2 },
@@ -2679,7 +2685,7 @@ if (event.httpMethod === "POST" && route === "bonus/answers") {
   for (const item of items){
     const q = qMap.get(Number(item.question_id));
     if (!q) continue;
-    const questionLocked = q.is_locked === true || String(q.is_locked).toLowerCase() === "true";
+    const questionLocked = isBonusQuestionClosed(q);
     if (questionLocked) { lockedAttemptCount += 1; continue; }
     const answer_value = String(item.answer_value ?? "").trim();
     const answer_text = String(item.answer_text ?? answer_value).trim();
@@ -2688,7 +2694,7 @@ if (event.httpMethod === "POST" && route === "bonus/answers") {
     payload.push({ player_id:u.sub, question_id:q.id, answer_value, answer_text, is_correct, points:is_correct ? Number(q.points || 1) : 0 });
   }
   if (!payload.length) {
-    return json(lockedAttemptCount ? 403 : 400, { error: lockedAttemptCount ? "Lisaküsimused on lukus ja vastuseid ei saa enam muuta." : "Ühtegi salvestatavat vastust ei olnud." });
+    return json(lockedAttemptCount ? 403 : 400, { error: lockedAttemptCount ? "Lisaküsimused on lukus või juba kontrollitud ja vastuseid ei saa enam muuta." : "Ühtegi salvestatavat vastust ei olnud." });
   }
   const up = await sb.from("bonus_answers").upsert(payload, { onConflict:"player_id,question_id" }).select("*");
   if (up.error) return json(500, { error:up.error.message });
