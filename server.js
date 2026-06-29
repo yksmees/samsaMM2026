@@ -1601,7 +1601,14 @@ function normalizeTeamName(name){
     .replace(/turkey/g, "türkiye")
     .replace(/u\.s\./g, "united states")
     .replace(/usa/g, "united states")
+    .replace(/cape verde islands/g, "cape verde")
+    .replace(/cabo verde/g, "cape verde")
+    .replace(/czech republic/g, "czechia")
+    .replace(/curacao/g, "curacao")
+    .replace(/curaçao/g, "curacao")
     .replace(/dr congo/g, "congo dr")
+    .replace(/d r congo/g, "congo dr")
+    .replace(/democratic republic of congo/g, "congo dr")
     .replace(/republic of ireland/g, "ireland")
     .replace(/[^a-z0-9äöüõ\s]/g, "")
     .replace(/\s+/g, " ")
@@ -1614,6 +1621,18 @@ function isPlaceholderTeam(name){
   const n = normalizeTeamName(s);
   if (["tbd", "to be decided", "to be confirmed", "unknown"].includes(n)) return true;
   return /^[WL]\d+$/i.test(s) || /^[123][A-Z]+$/i.test(s) || /^[12][A-L]$/i.test(s) || /^3[A-Z]+$/i.test(s);
+}
+
+function hasConcreteMatchTeams(match){
+  return !!match && !isPlaceholderTeam(match.home) && !isPlaceholderTeam(match.away);
+}
+
+function isVisibleToUsersMatch(match){
+  return !isPlayoffMatch(match) || hasConcreteMatchTeams(match);
+}
+
+function isApiFootballWorldCup2026Fixture(fx){
+  return Number(fx?.league?.id) === API_FOOTBALL_LEAGUE_ID && Number(fx?.league?.season) === API_FOOTBALL_SEASON;
 }
 
 function fixtureHasConcreteTeams(fx){
@@ -1688,6 +1707,7 @@ function chooseFixtureForPlaceholderPlayoffMatch(dbMatch, fixtures){
 
   const candidates = [];
   for (const fx of fixtures){
+    if (!isApiFootballWorldCup2026Fixture(fx)) continue;
     if (!fixtureHasConcreteTeams(fx)) continue;
     const diffMin = fixtureKickoffDiffMinutes(dbMatch, fx);
     if (diffMin === null || diffMin > 120) continue;
@@ -1714,7 +1734,7 @@ function chooseFixtureForMatch(dbMatch, fixtures){
   if (dbMatch.api_football_fixture_id){
     // Kui fixture id on juba Samsungi mängu külge salvestatud, ei tohi seda enam
     // tiimi/aja järgi ümber siduda. Kui API vastuses seda fixture'it pole, jätame mängu vahele.
-    return fixtures.find(fx => Number(fx?.fixture?.id) === Number(dbMatch.api_football_fixture_id)) || null;
+    return fixtures.find(fx => Number(fx?.fixture?.id) === Number(dbMatch.api_football_fixture_id) && isApiFootballWorldCup2026Fixture(fx)) || null;
   }
 
   if (isPlaceholderTeam(dbMatch.home) || isPlaceholderTeam(dbMatch.away)) {
@@ -1723,6 +1743,7 @@ function chooseFixtureForMatch(dbMatch, fixtures){
 
   const candidates = [];
   for (const fx of fixtures){
+    if (!isApiFootballWorldCup2026Fixture(fx)) continue;
     if (!fixtureTeamsMatch(dbMatch, fx)) continue;
     const diffMin = fixtureKickoffDiffMinutes(dbMatch, fx);
     if (diffMin === null || diffMin > 120) continue;
@@ -1757,7 +1778,35 @@ async function fetchApiFootballFixtures(){
   }
 
   const data = await resp.json();
-  return { ok:true, fixtures: Array.isArray(data?.response) ? data.response : [] };
+  const rawFixtures = Array.isArray(data?.response) ? data.response : [];
+  const fixtures = rawFixtures.filter(isApiFootballWorldCup2026Fixture);
+  return { ok:true, fixtures, rawFixtures: rawFixtures.length, ignoredNonWorldCup: rawFixtures.length - fixtures.length };
+}
+
+function resolveBracketPlaceholderTeam(value, matchesByNo){
+  const raw = String(value || "").trim();
+  const m = raw.match(/^([WL])(\d+)$/i);
+  if (!m) return null;
+
+  const source = matchesByNo.get(Number(m[2]));
+  if (!source || !hasConcreteMatchTeams(source) || !source.is_finished) return null;
+
+  let winner = source.advancing_team || null;
+  if (!winner && source.final_home !== null && source.final_home !== undefined && source.final_away !== null && source.final_away !== undefined){
+    const fh = Number(source.final_home);
+    const fa = Number(source.final_away);
+    if (Number.isFinite(fh) && Number.isFinite(fa) && fh !== fa){
+      winner = fh > fa ? source.home : source.away;
+    }
+  }
+
+  if (!winner || isPlaceholderTeam(winner)) return null;
+
+  if (m[1].toUpperCase() === "W") return winner;
+
+  if (winner === source.home && !isPlaceholderTeam(source.away)) return source.away;
+  if (winner === source.away && !isPlaceholderTeam(source.home)) return source.home;
+  return null;
 }
 
 async function recalcPointsForMatch(sb, matchId, fh, fa){
@@ -1789,13 +1838,59 @@ async function syncApiFootballResults(sb, { force=false } = {}){
   }
 
   let updated = 0;
-  for (const match of matchesRes.data || []){
+  let playoffTeamsUpdated = 0;
+  let placeholderCleaned = 0;
+  const ignoredNonWorldCup = fetched.ignoredNonWorldCup || 0;
+  const matches = matchesRes.data || [];
+  const matchesByNo = new Map(matches.map(m => [Number(m.match_no), m]));
+
+  for (const match of matches){
     if (match.manual_result_override) continue;
 
-    const fx = chooseFixtureForMatch(match, fixtures);
-    if (!fx) continue;
-
     const patch = {};
+
+    // Round of 16 ja edasi: W73/L101 tüüpi kohatäited saab täita bracketi järgi,
+    // aga ainult siis, kui allikmäng on lõppenud ja võitja/kaotaja on kindlalt teada.
+    if (isPlayoffMatch(match)){
+      const resolvedHome = isPlaceholderTeam(match.home) ? resolveBracketPlaceholderTeam(match.home, matchesByNo) : null;
+      const resolvedAway = isPlaceholderTeam(match.away) ? resolveBracketPlaceholderTeam(match.away, matchesByNo) : null;
+      if (resolvedHome && resolvedHome !== match.home) patch.home = resolvedHome;
+      if (resolvedAway && resolvedAway !== match.away) patch.away = resolvedAway;
+    }
+
+    const matchForFixture = { ...match, ...patch };
+    const fx = chooseFixtureForMatch(matchForFixture, fixtures);
+
+    if (!fx){
+      if (isPlayoffMatch(match) && (isPlaceholderTeam(match.home) || isPlaceholderTeam(match.away))){
+        if (match.is_finished || match.final_home !== null || match.final_away !== null || match.advancing_team || match.status_short || match.went_extra){
+          patch.final_home = null;
+          patch.final_away = null;
+          patch.is_finished = false;
+          patch.status_short = null;
+          patch.went_extra = false;
+          patch.advancing_team = null;
+          placeholderCleaned += 1;
+        }
+      }
+      if (Object.keys(patch).length){
+        if (patch.home || patch.away) playoffTeamsUpdated += 1;
+        const upd = await sb.from("matches").update(patch).eq("id", match.id).select("*").single();
+        if (!upd.error){
+          updated += 1;
+          if (patch.final_home === null || patch.final_away === null || patch.is_finished === false){
+            await recalcPointsForMatch(sb, match.id, null, null);
+          }
+          if (patch.home || patch.away){
+            if (patch.home) match.home = patch.home;
+            if (patch.away) match.away = patch.away;
+            matchesByNo.set(Number(match.match_no), { ...match, ...patch });
+          }
+        }
+      }
+      continue;
+    }
+
     const fxId = Number(fx?.fixture?.id);
     if (fxId && Number(match.api_football_fixture_id) !== fxId){
       patch.api_football_fixture_id = fxId;
@@ -1807,6 +1902,9 @@ async function syncApiFootballResults(sb, { force=false } = {}){
       if (isPlaceholderTeam(match.home) && apiHomeName) patch.home = apiHomeName;
       if (isPlaceholderTeam(match.away) && apiAwayName) patch.away = apiAwayName;
     }
+
+    const teamFieldsChanged = (patch.home && patch.home !== match.home) || (patch.away && patch.away !== match.away);
+    if (teamFieldsChanged) playoffTeamsUpdated += 1;
 
     if (apiFixtureFinished(fx)){
       const statusShort = fx?.fixture?.status?.short || "";
@@ -1838,6 +1936,7 @@ async function syncApiFootballResults(sb, { force=false } = {}){
           const upd = await sb.from("matches").update(patch).eq("id", match.id).select("*").single();
           if (!upd.error){
             updated += 1;
+            matchesByNo.set(Number(match.match_no), { ...match, ...patch });
             if (changed){
               await recalcPointsForMatch(sb, match.id, homeGoals, awayGoals);
             }
@@ -1847,11 +1946,14 @@ async function syncApiFootballResults(sb, { force=false } = {}){
       }
     } else if (Object.keys(patch).length){
       const upd = await sb.from("matches").update(patch).eq("id", match.id);
-      if (!upd.error) updated += 1;
+      if (!upd.error) {
+        updated += 1;
+        matchesByNo.set(Number(match.match_no), { ...match, ...patch });
+      }
     }
   }
 
-  return { ok:true, updated, fixtures: fixtures.length };
+  return { ok:true, updated, fixtures: fixtures.length, playoffTeamsUpdated, placeholderCleaned, ignoredNonWorldCup };
 }
 
 
@@ -1891,7 +1993,7 @@ async function netlifyHandler(event) {
       const sb = sbAdmin();
       const sync = await syncApiFootballResults(sb, { force:true });
       if (!sync.ok) return json(500, { ok:false, error: sync.error || "Tulemuste sünkroniseerimine ebaõnnestus." });
-      return json(200, { ok:true, source:"cron", updated: sync.updated || 0, fixtures: sync.fixtures || 0, skipped: !!sync.skipped, reason: sync.reason || "" });
+      return json(200, { ok:true, source:"cron", updated: sync.updated || 0, fixtures: sync.fixtures || 0, skipped: !!sync.skipped, reason: sync.reason || "", playoff_teams_updated: sync.playoffTeamsUpdated || 0, placeholder_cleaned: sync.placeholderCleaned || 0, ignored_non_worldcup_fixtures: sync.ignoredNonWorldCup || 0 });
     }
 
     if (event.httpMethod === "GET" && route === "health") {
@@ -2033,7 +2135,7 @@ if (event.httpMethod === "GET" && route === "me") {
       if (!u || !u.is_admin) return json(403, { error: "Admini õigused puuduvad." });
       const sync = await syncApiFootballResults(sb, { force:true });
       if (!sync.ok) return json(500, { error: sync.error || "Tulemuste sünkroniseerimine ebaõnnestus." });
-      return json(200, { ok:true, updated: sync.updated || 0, fixtures: sync.fixtures || 0, skipped: !!sync.skipped, reason: sync.reason || "" });
+      return json(200, { ok:true, updated: sync.updated || 0, fixtures: sync.fixtures || 0, skipped: !!sync.skipped, reason: sync.reason || "", playoff_teams_updated: sync.playoffTeamsUpdated || 0, placeholder_cleaned: sync.placeholderCleaned || 0, ignored_non_worldcup_fixtures: sync.ignoredNonWorldCup || 0 });
     }
 
     // Admin seed matches (idempotent upsert by match_no)
@@ -2302,7 +2404,7 @@ if (event.httpMethod === "GET" && route === "predictions/public") {
   const u = userFrom(event);
   if (!u) return json(401, { error: "Pole sisse logitud." });
 
-  const matchesRes = await sb.from("matches").select("id,kickoff_utc,is_finished");
+  const matchesRes = await sb.from("matches").select("id,match_no,home,away,kickoff_utc,is_finished");
   if (matchesRes.error) return json(500, { error: matchesRes.error.message });
 
   const now = Date.now();
@@ -2310,7 +2412,7 @@ if (event.httpMethod === "GET" && route === "predictions/public") {
   for (const m of matchesRes.data || []) {
     const kickoff = m.kickoff_utc ? new Date(m.kickoff_utc).getTime() : null;
     const locked = m.is_finished || (kickoff && now >= (kickoff - 60 * 60 * 1000));
-    if (locked) openMatchIds.push(m.id);
+    if (locked && isVisibleToUsersMatch(m)) openMatchIds.push(m.id);
   }
 
   if (!openMatchIds.length) return json(200, { ok: true, predictions_by_match: {} });
@@ -2363,6 +2465,7 @@ if (event.httpMethod === "GET" && route === "predictions/matrix") {
 
   const now = Date.now();
   const visibleMatches = (matchesRes.data || []).filter(m => {
+    if (!isVisibleToUsersMatch(m)) return false;
     const kickoff = m.kickoff_utc ? new Date(m.kickoff_utc).getTime() : null;
     return m.is_finished ||
       (

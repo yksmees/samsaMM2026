@@ -865,6 +865,16 @@ function matchAdvancer(row){
   return "";
 }
 function isPlayoff(row){ return Number(row?.match_no || 0) >= 73; }
+function isPlaceholderTeamName(name){
+  const s = String(name || "").trim();
+  if (!s) return true;
+  const n = s.toLowerCase();
+  if (["tbd", "to be decided", "to be confirmed", "unknown"].includes(n)) return true;
+  return /^[WL]\d+$/i.test(s) || /^[123][A-Z]+$/i.test(s) || /^[12][A-L]$/i.test(s) || /^3[A-Z]+$/i.test(s);
+}
+function isVisibleToUsersMatch(row){
+  return !isPlayoff(row) || (!isPlaceholderTeamName(row?.home) && !isPlaceholderTeamName(row?.away));
+}
 function sortMatchesForPredictions(matches){
   return [...(matches || [])].sort((a,b)=>{
     const at = a?.kickoff_utc ? new Date(a.kickoff_utc).getTime() : Number.POSITIVE_INFINITY;
@@ -1068,7 +1078,7 @@ async function loadMatchesAndPreds(){
     const map = new Map((p.predictions||[]).map(x=>[x.match_id, x]));
     const publicMap = pub.predictions_by_match || {};
     populateAdminMatchSelects(m.matches || []);
-    const matches = sortMatchesForPredictions(m.matches || []);
+    const matches = sortMatchesForPredictions((m.matches || []).filter(isVisibleToUsersMatch));
     const hasFinished = matches.some(row => !!(row.is_finished || finalScoreText(row)));
     const toggleBtn = $("toggleFinishedMatches");
     if (toggleBtn) {

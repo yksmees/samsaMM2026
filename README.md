@@ -480,3 +480,17 @@ Tulemuste sync / cron uuendab nüüd play-off mängude kohatäited päris tiimid
 - Kui vaste on kindel, salvestatakse `api_football_fixture_id` ning asendatakse kohatäited päris riikidega.
 - Kui vaste on ebakindel või duplikaat, ei kirjutata Samsungi mängu üle.
 - Olemasolevad ennustused jäävad sama `match_id` külge, kasutajaid ja ennustusi ei kustutata.
+
+## Samsung play-off API tiimide turvaparandus
+
+See pakk hoiab API-Football sünkroniseerimise rangelt FIFA World Cup 2026 põhiliiga peal: league id `1`, season `2026`. Muud World Cup nimelised liigad, näiteks U17, U20, naiste turniirid või muud sarjad, ignoreeritakse.
+
+Play-off placeholderid nagu `W73`, `L101`, `2A`, `3ABCDEF` ei kuvata kasutajavaadetes enne, kui mõlemad pooled on päris riigid. Kui API-Football annab kindla FIFA World Cup 2026 vaste või bracketi W/L allikmäng on lõppenud, uuendatakse sama `matches.id` rea nähtavaid tiime. Ennustusi ja kasutajaid ei kustutata ega seota ümber.
+
+Admini sync ja cron vastus sisaldavad lisavälju:
+
+- `playoff_teams_updated`
+- `placeholder_cleaned`
+- `ignored_non_worldcup_fixtures`
+
+SQL-i ei ole vaja.
